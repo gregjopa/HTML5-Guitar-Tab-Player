@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--Created by Greg Jopa on 12/27/2010 - http://www.gregjopa.com/2010/12/html5-guitar-tab-player-with-firefox-audio-data-api/ -->
+<title>HTML5 MusicXML Reader - Audio Data API</title>
+<script type="text/javascript" src="js/jquery-1.4.4.min.js"></script>
+<script type="text/javascript" src="js/audiodata.js"></script>
+
+<!--vexflow.com guitar tab app-->
+<script type="text/javascript" src="tabdiv/vexflow-free.js"></script>
+<script type="text/javascript" src="tabdiv/vextabdiv-free.js"></script>
+<link href="tabdiv/tabdiv.css" media="screen" rel="stylesheet" type="text/css" />
+
+<script type="text/javascript">
+
+	var index = 0, sampleRate = 44100, scoreLength, tempo, bufferLength, buffer, 
+		ctx, speed, animation, showLoader;
+	
+	Vex.Flow.TabDiv.SEL = null; // vexflow - disable automatic initialization		
+	
+	// note frequencies at octave 0 - source: http://www.sengpielaudio.com/calculator-notenames.htm
+	var notes = {C:16.352, Cs:17.324, D:18.354, Ds:19.445, E:20.602, F:21.827, Fs:23.124, G:24.500, Gs:25.956, A:27.500, As:29.135, B:30.868};
+		
+	function playNote(baseFreq, octave, length) {
+		// calculate frequency 
+		var frequency = baseFreq * Math.pow(2,octave);
+		var start = Math.ceil(sampleRate * index * 60 / tempo);
+		var end = Math.floor(sampleRate * ((index + length) * 60 / tempo - 0.1) ); // -100ms pause at the end
+        
+		var k = 2* Math.PI * frequency / sampleRate;
+		for (var i = start; i <= end; i++) {
+			buffer[i] = Math.sin(k * i);
+		}
+		index += length;
+	}
+	
+	function processAudio() {
+		// setting up the sound source
+		var audioParameters = new AudioParameters(1, sampleRate);
+		var audioSource = new AudioDataMemorySource(audioParameters, buffer);
+		
+		// playing
+		var audioDestination = new AudioDataDestination();
+		audioDestination.writeAsync(audioSource);	  
+	}
+	
+	function initCursor() {
+	
+		x = 65;
+		y = 50;
+		var canvas = $('canvas')[1];
+		// calculate cursor speed
+		speed = 60/Number($('#txtTempo').val()) * 100 *1.2;
+
+		if (canvas.getContext) {
+			ctx = canvas.getContext('2d');
+			animation = setInterval(draw, speed); 
+		}
+	}
+	function draw() {
+		
+		ctx.fillStyle = "rgba(200,0,0, 0.5)";
+		ctx.clearRect (x-5, y, 10, 140);
+		ctx.fillRect (x, y, 10, 140);
+		ctx.fill();
+		x = x+5;
+		
+		if (x == 725) {
+			switch (y)
+			{
+			case 50:
+				if (scoreLength <= 16) {
+				  ctx.clearRect (x-5, y, 10, 140);
+				  clearInterval(animation);
+				}
+				else {
+				  ctx.clearRect (x-5, y, 10, 140);
+				  y=230;
+				  x=65;				
+				}
+			  break;
+			case 230:
+				if (scoreLength <= 32) {
+				  ctx.clearRect (x-5, y, 10, 140);
+				  clearInterval(animation);
+				}
+				else {
+				  ctx.clearRect (x-5, y, 10, 140);
+				  y=410;
+				  x=65;				
+				}			
+			  break;
+			case 410:
+			  ctx.clearRect (x-5, y, 10, 140);
+			  clearInterval(animation);		
+			  break;
+			}
+		}
+		
+	}
+
+	function play() {
+	
+		// put js function defined with AJAX in scope
+		jQuery.globalEval(document.getElementById('audio').innerHTML);
+		
+		tempo = Number($('#txtTempo').val());
+		// preparing the buffer
+		bufferLength = Math.ceil(sampleRate * scoreLength * 60 / tempo);
+		buffer = new Float32Array(bufferLength);
+
+		// reset index
+		index = 0;
+		
+		loadAudio();
+		processAudio();
+		initCursor();
+	}
+		
+	$(document).ready(function() {	
+		loadXML($("input[name='tab']:checked").val());		
+	});
+	
+	function loadXML(file)
+	{
+		showLoader = setTimeout("$('#loader').show()", 300);
+		$('#tab').empty();
+		$('#audio').empty();
+
+		$.ajax({
+		type: "GET",
+		url: "musicxml/" + file,
+		dataType: "xml",
+		success: function(xml) { 
+					
+		var divisions, note, counter = 0, tab = "", audio = "\n\tfunction loadAudio(){\n\t", noteType;
+		
+		$(xml).find('measure').each(function()
+		{
+			if(($(this).attr('number')-1)%4 == 0 || $(this).attr('number') == 1)
+			{
+				tab += "\n\ttabstave notation=true\n\tnotes";
+			}
+			else
+			{
+				tab += " |";
+			}
+			
+			divisions = $(this).find('attributes').children('divisions').text();
+			
+				$(this).find("note").each(function()
+				{
+					// check for sharps								
+					if($(this).find('pitch').children('alter').length == 0){
+						note = $(this).find('pitch').children('step').text();
+					}
+					else{
+						note = $(this).find('pitch').children('step').text() + "s";
+					}
+					
+					audio += "playNote(notes." + note + ", " + $(this).find('pitch').children('octave').text() +
+					 ", " + $(this).find('duration').text()/divisions + ");\n\t";
+					
+					switch ($(this).find('duration').text()/divisions) {
+					case .125: noteType = '32'; break;
+					case .25: noteType = '16'; break;
+					case .5: noteType = '8'; break;
+					case 1: noteType = 'q'; break;
+					case 2: noteType = 'h'; break;
+					case 4: noteType = 'w'; break;
+					default: noteType = 'q';
+					}
+					
+					tab += " :" + noteType + " " + $(this).find('notations').children('technical').children('fret').text() + "/" + 
+						$(this).find('notations').children('technical').children('string').text(); 
+					 
+					// running sum for scoreLength 
+					counter += Number($(this).find('duration').text());
+				});
+				
+		});
+		  
+		audio += "}\n\t";
+		
+		scoreLength = counter/divisions;
+		
+		$('#audio').append(audio);
+		$('#tab').append(tab);
+		
+		var tabdiv = new Vex.Flow.TabDiv("#tab"); // vexflow - parse, create canvas, and redraw
+		
+		clearTimeout(showLoader);
+		$('#loader').hide();
+		}
+	  });  
+	}
+</script>
+
+</head>
+
+<body>
+<div style="width:800px; margin:0px auto;">
+
+    <h1>HTML5 MusicXML Player - FireFox 4 Audio Data API</h1>
+    <form name="tabform">
+	<input type="radio" name="tab" value="Twinkle, Twinkle, Little Star.xml" onclick="loadXML(this.value)" checked /> Twinkle, Twinkle, Little Star<br />
+	<input type="radio" name="tab" value="12 Bar Blues (G).xml" onclick="loadXML(this.value)" /> 12 Bar Blues (key of G)<br />
+	<input type="radio" name="tab" value="Minor Harmonic Scale (A).xml" onclick="loadXML(this.value)" /> Minor Harmonic Scale (key of A)<br />
+	<input type="radio" name="tab" value="Triad Exercise (C).xml" onclick="loadXML(this.value)" /> Triad Exercise (key of C)<br />
+	<input type="radio" name="tab" value="Blues Solo in E.xml" onclick="loadXML(this.value)" /> Blues Solo in E<br />
+	</form>
+	<hr />
+	<br />
+	
+	Tempo (bpm): <input type="text" id="txtTempo" value="120" />	
+	<button onclick="play()">Play</button>
+
+	<script id="audio" type="text/javascript">
+	</script>
+	
+	<div style="position: relative; text-align: center;">
+		<img id="loader" src="tabdiv/loading.gif" />
+		<div id="tab" class="vex-tabdiv" width=780 scale=1.0 editor="false">
+		</div>
+		<canvas id="cursor" width="800" height="610" style="position: absolute; left: 0; top: 0; z-index: 1;">Your Browser does not support the HTML5 canvas element</canvas>
+	</div>
+</div>
+</body>
+</html>
+
