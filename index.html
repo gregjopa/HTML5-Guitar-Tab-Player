@@ -18,12 +18,12 @@
 	
 	Vex.Flow.TabDiv.SEL = null; // vexflow - disable automatic initialization		
 	
-	// note frequencies at octave 0 - source: http://www.sengpielaudio.com/calculator-notenames.htm
-	var notes = {C:16.352, Cs:17.324, D:18.354, Ds:19.445, E:20.602, F:21.827, Fs:23.124, G:24.500, Gs:25.956, A:27.500, As:29.135, B:30.868};
+	// distances from 440 (A4) for frequency calculation - formula: 440 × 2^(n/12)  source: http://www.sengpielaudio.com/calculator-notenames.htm
+	var notes = {C:-9, Cs:-8, D:-7, Ds:-6, E:-5, F:-4, Fs:-3, G:-2, Gs:-1, A:0, As:1, B:2};
 		
-	function playNote(baseFreq, octave, length) {
+	function playNote(distanceFreq, octave, length) {
 		// calculate frequency 
-		var frequency = baseFreq * Math.pow(2,octave);
+		var frequency = 440 * Math.pow(2,((octave-4) * 12 + distanceFreq)/12);
 		var start = Math.ceil(sampleRate * index * 60 / tempo);
 		var end = Math.floor(sampleRate * ((index + length) * 60 / tempo - 0.1) ); // -100ms pause at the end
         
