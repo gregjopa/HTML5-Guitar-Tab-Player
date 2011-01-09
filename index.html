@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<!--Created by Greg Jopa on 12/31/2010 - http://www.gregjopa.com/2010/12/html5-guitar-tab-player-with-firefox-audio-data-api/ -->
-<title>HTML5 MusicXML Reader - Audio Data API</title>
+<!--Created by Greg Jopa - http://www.gregjopa.com/2010/12/html5-guitar-tab-player-with-firefox-audio-data-api/ -->
+<title>HTML5 Guitar Tab Player - By Greg Jopa</title>
 <script type="text/javascript" src="js/jquery-1.4.4.min.js"></script>
 <script type="text/javascript" src="js/audiodata.js"></script>
 
@@ -20,8 +20,11 @@
 	
 	// distances from 440 (A4) for frequency calculation - formula: 440 * 2^(n/12)  source: http://www.sengpielaudio.com/calculator-notenames.htm
 	var notes = {C:-9, Cs:-8, D:-7, Ds:-6, E:-5, F:-4, Fs:-3, G:-2, Gs:-1, A:0, As:1, B:2};
-		
+	
+	var audioDestination = new AudioDataDestination();
+	
 	function playNote(distanceFreq, octave, length) {
+	
 		// calculate frequency 
 		var frequency = 440 * Math.pow(2,((octave-4) * 12 + distanceFreq)/12);
 		var start = Math.ceil(sampleRate * index * 60 / tempo);
@@ -35,12 +38,12 @@
 	}
 	
 	function processAudio() {
+	
 		// setting up the sound source
 		var audioParameters = new AudioParameters(1, sampleRate);
 		var audioSource = new AudioDataMemorySource(audioParameters, buffer);
 		
 		// playing
-		var audioDestination = new AudioDataDestination();
 		audioDestination.writeAsync(audioSource);	  
 	}
 	
@@ -97,36 +100,67 @@
 			}
 		}
 		
+		//stop when audio finished playing
+		if (audioDestination.currentWritePosition == buffer.length) {
+			ctx.clearRect (x-5, y, 10, 140);
+			clearInterval(animation);
+			$('#desc').empty();
+		}		
 	}
 
 	function play() {
 	
-		// put js function defined with AJAX in scope
-		jQuery.globalEval(document.getElementById('audio').innerHTML);
-		
-		tempo = Number($('#txtTempo').val());
-		// preparing the buffer
-		bufferLength = Math.ceil(sampleRate * scoreLength * 60 / tempo);
-		buffer = new Float32Array(bufferLength);
+		if (audioDestination.currentWritePosition == 0 || audioDestination.currentWritePosition == buffer.length) {
+			// put js function defined with AJAX in scope
+			jQuery.globalEval(document.getElementById('audio').innerHTML);
+			
+			tempo = Number($('#txtTempo').val());
+			// preparing the buffer
+			bufferLength = Math.ceil(sampleRate * scoreLength * 60 / tempo);
+			buffer = new Float32Array(bufferLength);
 
-		// reset index
-		index = 0;
-		
-		loadAudio();
-		processAudio();
-		initCursor();
+			// reset index
+			index = 0;
+			
+			loadAudio();
+			processAudio();
+			initCursor();
+			
+			var playDesc = "playing " + $("input[name='tab']:checked").val();
+			$('#desc').empty().append(playDesc);
+		}
+		else {
+			var playDesc = "playing " + $("input[name='tab']:checked").val() + " (pause not supported)";
+			$('#desc').empty().append(playDesc);	
+		}
+	}
+	
+	function stop() {
+	
+		// stop audio
+		audioDestination.shutdown();
+		audioDestination = new AudioDataDestination();
+		// stop animated cursor
+		clearInterval(animation);
+		canvasTab = document.getElementById('cursor');
+		ctx.clearRect(0,0,canvasTab.width,canvasTab.height);
+		$('#desc').empty();
 	}
 		
 	$(document).ready(function() {	
 		loadXML($("input[name='tab']:checked").val());		
 	});
 	
-	function loadXML(file)
-	{
+	function loadXML(file) {
+	
 		showLoader = setTimeout("$('#loader').show()", 300);
 		$('#tab').empty();
 		$('#audio').empty();
-
+		
+		if (audioDestination.currentWritePosition > 0) {
+			stop();
+		}
+		
 		$.ajax({
 		type: "GET",
 		url: "musicxml/" + file,
@@ -137,12 +171,10 @@
 		
 		$(xml).find('measure').each(function()
 		{
-			if(($(this).attr('number')-1)%4 == 0 || $(this).attr('number') == 1)
-			{
+			if(($(this).attr('number')-1)%4 == 0 || $(this).attr('number') == 1) {
 				tab += "\n\ttabstave notation=true\n\tnotes";
 			}
-			else
-			{
+			else {
 				tab += " |";
 			}
 			
@@ -201,7 +233,7 @@
 <body>
 <div style="width:800px; margin:0px auto;">
 
-    <h1>HTML5 MusicXML Player - FireFox 4 Audio Data API</h1>
+    <h1>HTML5 Guitar Tab Player - FireFox 4 Audio Data API</h1>
     <form name="tabform">
 	<input type="radio" name="tab" value="Twinkle, Twinkle, Little Star.xml" onclick="loadXML(this.value)" checked /> Twinkle, Twinkle, Little Star<br />
 	<input type="radio" name="tab" value="12 Bar Blues (G).xml" onclick="loadXML(this.value)" /> 12 Bar Blues (key of G)<br />
@@ -211,10 +243,12 @@
 	</form>
 	<hr />
 	<br />
-	
+
 	Tempo (bpm): <input type="text" id="txtTempo" value="120" />	
 	<button onclick="play()">Play</button>
-
+	<button onclick="stop()">Stop</button>
+	<label id="desc" style="margin-left:40px;"></label>
+	
 	<script id="audio" type="text/javascript">
 	</script>
 	
