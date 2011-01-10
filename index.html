@@ -5,6 +5,7 @@
 <title>HTML5 Guitar Tab Player - By Greg Jopa</title>
 <script type="text/javascript" src="js/jquery-1.4.4.min.js"></script>
 <script type="text/javascript" src="js/audiodata.js"></script>
+<script type="text/javascript" src="js/dsp.js"></script>
 
 <!--vexflow.com guitar tab app-->
 <script type="text/javascript" src="tabdiv/vexflow-free.js"></script>
@@ -27,14 +28,39 @@
 	
 		// calculate frequency 
 		var frequency = 440 * Math.pow(2,((octave-4) * 12 + distanceFreq)/12);
+		
+		// dsp envelope - create array for single note and apply envelope
+		var singleNoteLength = Math.ceil(sampleRate * length * 60 / tempo);
+		var singleNoteBuffer = new Float32Array(singleNoteLength);
+		
 		var start = Math.ceil(sampleRate * index * 60 / tempo);
-		var end = Math.floor(sampleRate * ((index + length) * 60 / tempo - 0.1) ); // -100ms pause at the end
+		var end = Math.floor(sampleRate * ((index + length) * 60 / tempo));
         
 		var k = 2* Math.PI * frequency / sampleRate;
-		for (var i = start; i <= end; i++) {
-			buffer[i] = Math.sin(k * i);
+		for (var i = 0; i <= (end-start); i++) {
+			singleNoteBuffer[i] = Math.sin(k * i) * .6 //* .6 to lower volume
 		}
 		index += length;
+		
+		var envelope, t = 120/Number($('#txtTempo').val());
+		switch (length) {
+			case .125: envelope = new ADSR(0.01*t, 0.005*t, 0.5, 0.0375*t, 0.01*t, sampleRate); break;
+			case .25: envelope = new ADSR(0.01*t, 0.0125*t, 0.5, 0.0925*t, 0.01*t, sampleRate); break;
+			case .5: envelope = new ADSR(0.01*t, 0.025*t, 0.5, 0.205*t, 0.01*t, sampleRate); break;
+			case 1: envelope = new ADSR(0.01*t, 0.05*t, 0.5, 0.43*t, 0.01*t, sampleRate); break;
+			case 2: envelope = new ADSR(0.01*t, 0.1*t, 0.5, .88*t, 0.01*t, sampleRate); break;
+			case 4: envelope = new ADSR(0.01*t, 0.2*t, 0.5, 1.78*t, 0.01*t, sampleRate); break;
+			default: envelope = new ADSR(0.01*t, 0.05*t, 0.5, 0.4*t, 0.01*t, sampleRate); break;
+		}
+		//add ADSR envelope to fade in and out note
+		envelope.process(singleNoteBuffer);
+
+		var j = 0;
+		//add single note to buffer
+		for (var i = start; i < end; i++) {
+			buffer[i] = singleNoteBuffer[j];
+			j++;
+		}		
 	}
 	
 	function processAudio() {
@@ -53,13 +79,14 @@
 		y = 50;
 		var canvas = $('canvas')[1];
 		// calculate cursor speed
-		speed = 60/Number($('#txtTempo').val()) * 100 *1.2;
+		speed = 60/Number($('#txtTempo').val()) * 100 *1.18;
 
 		if (canvas.getContext) {
 			ctx = canvas.getContext('2d');
 			animation = setInterval(draw, speed); 
 		}
 	}
+	
 	function draw() {
 		
 		ctx.fillStyle = "rgba(200,0,0, 0.5)";
@@ -68,13 +95,12 @@
 		ctx.fill();
 		x = x+5;
 		
-		if (x == 725) {
+		if (x == 740) {
 			switch (y)
 			{
 			case 50:
 				if (scoreLength <= 16) {
-				  ctx.clearRect (x-5, y, 10, 140);
-				  clearInterval(animation);
+				  clearCursor(ctx, animation, x, y);
 				}
 				else {
 				  ctx.clearRect (x-5, y, 10, 140);
@@ -84,8 +110,7 @@
 			  break;
 			case 230:
 				if (scoreLength <= 32) {
-				  ctx.clearRect (x-5, y, 10, 140);
-				  clearInterval(animation);
+				  clearCursor(ctx, animation, x, y);
 				}
 				else {
 				  ctx.clearRect (x-5, y, 10, 140);
@@ -94,18 +119,17 @@
 				}			
 			  break;
 			case 410:
-			  ctx.clearRect (x-5, y, 10, 140);
-			  clearInterval(animation);		
+			  clearCursor(ctx, animation, x, y);			  
 			  break;
 			}
 		}
-		
-		//stop when audio finished playing
-		if (audioDestination.currentWritePosition == buffer.length) {
-			ctx.clearRect (x-5, y, 10, 140);
-			clearInterval(animation);
-			$('#desc').empty();
-		}		
+	}
+	
+	function clearCursor(ctx, animation, x, y) {
+	
+		ctx.clearRect (x-5, y, 10, 140);
+		clearInterval(animation);
+		$('#desc').empty();
 	}
 
 	function play() {
@@ -115,8 +139,8 @@
 			jQuery.globalEval(document.getElementById('audio').innerHTML);
 			
 			tempo = Number($('#txtTempo').val());
-			// preparing the buffer
-			bufferLength = Math.ceil(sampleRate * scoreLength * 60 / tempo);
+			// preparing the buffer (add 1 to scoreLength to prevent click at end of song)
+			bufferLength = Math.ceil(sampleRate * (scoreLength+1) * 60 / tempo);
 			buffer = new Float32Array(bufferLength);
 
 			// reset index
