@@ -1,287 +1,180 @@
 <!DOCTYPE html>
 <html>
 <head>
-<!--Created by Greg Jopa - http://www.gregjopa.com/2010/12/html5-guitar-tab-player-with-firefox-audio-data-api/ -->
-<title>HTML5 Guitar Tab Player - By Greg Jopa</title>
-<script type="text/javascript" src="js/jquery-1.4.4.min.js"></script>
-<script type="text/javascript" src="js/audiodata.js"></script>
-<script type="text/javascript" src="js/dsp.js"></script>
+  <!--Created by Greg Jopa - http://www.gregjopa.com/2010/12/html5-guitar-tab-player-with-firefox-audio-data-api/ -->
+  <title>HTML5 Guitar Tab Player - By Greg Jopa</title>
+  <script src="js/jquery-1.7.1.min.js"></script>
+  <script src="js/raphael-min.js"></script>
+  <script src="js/music.js"></script>
+  <script src="js/audiolib.min.js"></script>
 
-<!--vexflow.com guitar tab app-->
-<script type="text/javascript" src="tabdiv/vexflow-free.js"></script>
-<script type="text/javascript" src="tabdiv/vextabdiv-free.js"></script>
-<link href="tabdiv/tabdiv.css" media="screen" rel="stylesheet" type="text/css" />
+  <!--vexflow.com guitar tab app-->
+  <link href="tabdiv/tabdiv.css" media="screen" rel="stylesheet" type="text/css" />
+  <script src="tabdiv/vexflow.js"></script>
+  <script src="tabdiv/vextabdiv.js"></script>
 
-<script type="text/javascript">
+  <!-- custom js -->
+  <script src="js/tabplayer.js"></script>
 
-	var index = 0, sampleRate = 44100, scoreLength, tempo, bufferLength, buffer, 
-		ctx, speed, animation, showLoader;
-	
-	Vex.Flow.TabDiv.SEL = null; // vexflow - disable automatic initialization		
-	
-	// distances from 440 (A4) for frequency calculation - formula: 440 * 2^(n/12)  source: http://www.sengpielaudio.com/calculator-notenames.htm
-	var notes = {C:-9, Cs:-8, D:-7, Ds:-6, E:-5, F:-4, Fs:-3, G:-2, Gs:-1, A:0, As:1, B:2};
-	
-	var audioDestination = new AudioDataDestination();
-	
-	function playNote(distanceFreq, octave, length) {
-	
-		// calculate frequency 
-		var frequency = 440 * Math.pow(2,((octave-4) * 12 + distanceFreq)/12);
-		
-		// dsp envelope - create array for single note and apply envelope
-		var singleNoteLength = Math.ceil(sampleRate * length * 60 / tempo);
-		var singleNoteBuffer = new Float32Array(singleNoteLength);
-		
-		var start = Math.ceil(sampleRate * index * 60 / tempo);
-		var end = Math.floor(sampleRate * ((index + length) * 60 / tempo));
+  <script>
+
+    var tempo, showLoader, tabDiv, player;
+
+    Vex.Flow.TabDiv.SEL = null; // vexflow - disable automatic initialization
+  
+
+    function play() {
+      player.tempo = Number($('#txtTempo').val());
+      player.play();
+
+      var playDesc = "playing " + $("input[name='tab']:checked").val();
+      $('#desc').empty().append(playDesc);
+    }
+  
+
+    function stop() {
+      player.stop();
+      $('#desc').empty();
+    }
+ 
+   
+    $(document).ready(function() {
+      
+      // click events
+      $('#play').click(function() {
+        play();
+      });
+    
+      $('#stop').click(function() {
+        stop();
+      });
+      
+      $('input[name="tab"]').click(function() {
+        loadXML(this.value);
+      });
+
+      $('#debug-grid').click(function() {
+        if (player.debug) {
+          player.debug = false;
+          player.cursorCtx.clearRect(0, 0, player.cursorCanvas.width, player.cursorCanvas.height);
+        }
+        else {
+          player.debug = true;
+          player.drawDebugRectangles();
+        }       
+      });
+      
+    
+      // load tab
+      loadXML($("input[name='tab']:checked").val()); 
+    });
+
+  
+    function loadXML(file) {
+  
+      showLoader = setTimeout("$('#loader').show()", 300);
+      $('#tab').empty();
+      $('#audio').empty();
+    
+      $.ajax({
+      type: "GET",
+      url: "musicxml/" + file,
+      dataType: "xml",
+        success: function(xml) { 
+          
+        var divisions, note, tab = "", noteType;
+    
+        $(xml).find('measure').each(function() {
+          if(($(this).attr('number')-1)%4 == 0 || $(this).attr('number') == 1) {
+            tab += "\n\ttabstave notation=true\n\tnotes";
+          }
+          else {
+            tab += " |";
+          }
+      
+          divisions = $(this).find('attributes').children('divisions').text();
+      
+          $(this).find("note").each(function() {
+            // check for sharps               
+            if($(this).find('pitch').children('alter').length == 0){
+              note = $(this).find('pitch').children('step').text();
+            }
+            else{
+              note = $(this).find('pitch').children('step').text() + "s";
+            }
+
+            switch ($(this).find('duration').text()/divisions) {
+              case .125: noteType = '32'; break;
+              case .25: noteType = '16'; break;
+              case .5: noteType = '8'; break;
+              case 1: noteType = 'q'; break;
+              case 2: noteType = 'h'; break;
+              case 4: noteType = 'w'; break;
+              default: noteType = 'q';
+            }
+
+            tab += " :" + noteType + " " +
+              $(this).find('notations').children('technical').children('fret').text() + "/" +
+              $(this).find('notations').children('technical').children('string').text();
+          });
         
-		var k = 2* Math.PI * frequency / sampleRate;
-		for (var i = 0; i <= (end-start); i++) {
-			singleNoteBuffer[i] = Math.sin(k * i) * .6 //* .6 to lower volume
-		}
-		index += length;
-		
-		var envelope, t = 120/Number($('#txtTempo').val());
-		switch (length) {
-			case .125: envelope = new ADSR(0.01*t, 0.005*t, 0.5, 0.0375*t, 0.01*t, sampleRate); break;
-			case .25: envelope = new ADSR(0.01*t, 0.0125*t, 0.5, 0.0925*t, 0.01*t, sampleRate); break;
-			case .5: envelope = new ADSR(0.01*t, 0.025*t, 0.5, 0.205*t, 0.01*t, sampleRate); break;
-			case 1: envelope = new ADSR(0.01*t, 0.05*t, 0.5, 0.43*t, 0.01*t, sampleRate); break;
-			case 2: envelope = new ADSR(0.01*t, 0.1*t, 0.5, .88*t, 0.01*t, sampleRate); break;
-			case 4: envelope = new ADSR(0.01*t, 0.2*t, 0.5, 1.78*t, 0.01*t, sampleRate); break;
-			default: envelope = new ADSR(0.01*t, 0.05*t, 0.5, 0.4*t, 0.01*t, sampleRate); break;
-		}
-		//add ADSR envelope to fade in and out note
-		envelope.process(singleNoteBuffer);
+        });
+    
 
-		var j = 0;
-		//add single note to buffer
-		for (var i = start; i < end; i++) {
-			buffer[i] = singleNoteBuffer[j];
-			j++;
-		}		
-	}
-	
-	function processAudio() {
-	
-		// setting up the sound source
-		var audioParameters = new AudioParameters(1, sampleRate);
-		var audioSource = new AudioDataMemorySource(audioParameters, buffer);
-		
-		// playing
-		audioDestination.writeAsync(audioSource);	  
-	}
-	
-	function initCursor() {
-	
-		x = 65;
-		y = 50;
-		var canvas = $('canvas')[1];
-		// calculate cursor speed
-		speed = 60/Number($('#txtTempo').val()) * 100 *1.18;
+        $('#tab').append(tab);
+    
+        // vexflow - parse, create canvas, and redraw
+        tabDiv = new Vex.Flow.TabDiv("#tab");
+    
+        tempo = Number($('#txtTempo').val());
 
-		if (canvas.getContext) {
-			ctx = canvas.getContext('2d');
-			animation = setInterval(draw, speed); 
-		}
-	}
-	
-	function draw() {
-		
-		ctx.fillStyle = "rgba(200,0,0, 0.5)";
-		ctx.clearRect (x-5, y, 10, 140);
-		ctx.fillRect (x, y, 10, 140);
-		ctx.fill();
-		x = x+5;
-		
-		if (x == 740) {
-			switch (y)
-			{
-			case 50:
-				if (scoreLength <= 16) {
-				  clearCursor(ctx, animation, x, y);
-				}
-				else {
-				  ctx.clearRect (x-5, y, 10, 140);
-				  y=230;
-				  x=65;				
-				}
-			  break;
-			case 230:
-				if (scoreLength <= 32) {
-				  clearCursor(ctx, animation, x, y);
-				}
-				else {
-				  ctx.clearRect (x-5, y, 10, 140);
-				  y=410;
-				  x=65;				
-				}			
-			  break;
-			case 410:
-			  clearCursor(ctx, animation, x, y);			  
-			  break;
-			}
-		}
-	}
-	
-	function clearCursor(ctx, animation, x, y) {
-	
-		ctx.clearRect (x-5, y, 10, 140);
-		clearInterval(animation);
-		$('#desc').empty();
-	}
+        // initialize TabPlayer obj
+        player = new TabPlayer(tabDiv, tempo);
+        
+        player.prepareScore();
+        player.preparePixelMap();
+        player.initCursor();
 
-	function play() {
-	
-		if (audioDestination.currentWritePosition == 0 || audioDestination.currentWritePosition == buffer.length) {
-			// put js function defined with AJAX in scope
-			jQuery.globalEval(document.getElementById('audio').innerHTML);
-			
-			tempo = Number($('#txtTempo').val());
-			// preparing the buffer (add 1 to scoreLength to prevent click at end of song)
-			bufferLength = Math.ceil(sampleRate * (scoreLength+1) * 60 / tempo);
-			buffer = new Float32Array(bufferLength);
+        clearTimeout(showLoader);
+        $('#loader').hide();
+        }
+      });  
+    }
 
-			// reset index
-			index = 0;
-			
-			loadAudio();
-			processAudio();
-			initCursor();
-			
-			var playDesc = "playing " + $("input[name='tab']:checked").val();
-			$('#desc').empty().append(playDesc);
-		}
-		else {
-			var playDesc = "playing " + $("input[name='tab']:checked").val() + " (pause not supported)";
-			$('#desc').empty().append(playDesc);	
-		}
-	}
-	
-	function stop() {
-	
-		// stop audio
-		audioDestination.shutdown();
-		audioDestination = new AudioDataDestination();
-		// stop animated cursor
-		clearInterval(animation);
-		canvasTab = document.getElementById('cursor');
-		ctx.clearRect(0,0,canvasTab.width,canvasTab.height);
-		$('#desc').empty();
-	}
-		
-	$(document).ready(function() {	
-		loadXML($("input[name='tab']:checked").val());		
-	});
-	
-	function loadXML(file) {
-	
-		showLoader = setTimeout("$('#loader').show()", 300);
-		$('#tab').empty();
-		$('#audio').empty();
-		
-		if (audioDestination.currentWritePosition > 0) {
-			stop();
-		}
-		
-		$.ajax({
-		type: "GET",
-		url: "musicxml/" + file,
-		dataType: "xml",
-		success: function(xml) { 
-					
-		var divisions, note, counter = 0, tab = "", audio = "\n\tfunction loadAudio(){\n\t", noteType;
-		
-		$(xml).find('measure').each(function()
-		{
-			if(($(this).attr('number')-1)%4 == 0 || $(this).attr('number') == 1) {
-				tab += "\n\ttabstave notation=true\n\tnotes";
-			}
-			else {
-				tab += " |";
-			}
-			
-			divisions = $(this).find('attributes').children('divisions').text();
-			
-				$(this).find("note").each(function()
-				{
-					// check for sharps								
-					if($(this).find('pitch').children('alter').length == 0){
-						note = $(this).find('pitch').children('step').text();
-					}
-					else{
-						note = $(this).find('pitch').children('step').text() + "s";
-					}
-					
-					audio += "playNote(notes." + note + ", " + $(this).find('pitch').children('octave').text() +
-					 ", " + $(this).find('duration').text()/divisions + ");\n\t";
-					
-					switch ($(this).find('duration').text()/divisions) {
-					case .125: noteType = '32'; break;
-					case .25: noteType = '16'; break;
-					case .5: noteType = '8'; break;
-					case 1: noteType = 'q'; break;
-					case 2: noteType = 'h'; break;
-					case 4: noteType = 'w'; break;
-					default: noteType = 'q';
-					}
-					
-					tab += " :" + noteType + " " + $(this).find('notations').children('technical').children('fret').text() + "/" + 
-						$(this).find('notations').children('technical').children('string').text(); 
-					 
-					// running sum for scoreLength 
-					counter += Number($(this).find('duration').text());
-				});
-				
-		});
-		  
-		audio += "}\n\t";
-		
-		scoreLength = counter/divisions;
-		
-		$('#audio').append(audio);
-		$('#tab').append(tab);
-		
-		var tabdiv = new Vex.Flow.TabDiv("#tab"); // vexflow - parse, create canvas, and redraw
-		
-		clearTimeout(showLoader);
-		$('#loader').hide();
-		}
-	  });  
-	}
-</script>
+  </script>
 
 </head>
 
 <body>
-<div style="width:800px; margin:0px auto;">
+  <div style="width:800px; margin:0px auto;">
 
-    <h1>HTML5 Guitar Tab Player - FireFox 4 Audio Data API</h1>
+    <h1>HTML5 Guitar Tab Player - Web Audio API</h1>
     <form name="tabform">
-	<input type="radio" name="tab" value="Twinkle, Twinkle, Little Star.xml" onclick="loadXML(this.value)" checked /> Twinkle, Twinkle, Little Star<br />
-	<input type="radio" name="tab" value="12 Bar Blues (G).xml" onclick="loadXML(this.value)" /> 12 Bar Blues (key of G)<br />
-	<input type="radio" name="tab" value="Minor Harmonic Scale (A).xml" onclick="loadXML(this.value)" /> Minor Harmonic Scale (key of A)<br />
-	<input type="radio" name="tab" value="Triad Exercise (C).xml" onclick="loadXML(this.value)" /> Triad Exercise (key of C)<br />
-	<input type="radio" name="tab" value="Blues Solo in E.xml" onclick="loadXML(this.value)" /> Blues Solo in E<br />
-	</form>
-	<hr />
-	<br />
+      <input type="radio" name="tab" value="Twinkle, Twinkle, Little Star.xml" checked /> 
+        Twinkle, Twinkle, Little Star<br />
+      <input type="radio" name="tab" value="12 Bar Blues (G).xml" /> 
+        12 Bar Blues (key of G)<br />
+      <input type="radio" name="tab" value="Minor Harmonic Scale (A).xml" /> 
+        Minor Harmonic Scale (key of A)<br />
+      <input type="radio" name="tab" value="Triad Exercise (C).xml" /> 
+        Triad Exercise (key of C)<br />
+      <input type="radio" name="tab" value="Blues Solo in E.xml" /> 
+        Blues Solo in E<br />
+    </form>
+    <hr />
+    <br />
 
-	Tempo (bpm): <input type="text" id="txtTempo" value="120" />	
-	<button onclick="play()">Play</button>
-	<button onclick="stop()">Stop</button>
-	<label id="desc" style="margin-left:40px;"></label>
-	
-	<script id="audio" type="text/javascript">
-	</script>
-	
-	<div style="position: relative; text-align: center;">
-		<img id="loader" src="tabdiv/loading.gif" />
-		<div id="tab" class="vex-tabdiv" width=780 scale=1.0 editor="false">
-		</div>
-		<canvas id="cursor" width="800" height="610" style="position: absolute; left: 0; top: 0; z-index: 1;">Your Browser does not support the HTML5 canvas element</canvas>
-	</div>
-</div>
+    Tempo (bpm): <input type="text" id="txtTempo" value="120" />
+    <button id="play">Play</button>
+    <button id="stop">Stop</button>
+    <button id="debug-grid">Toggle Debug Grid</button>
+    <label id="desc" style="margin-left:40px;"></label>
+  
+    <div id="tab-wrapper" style="position: relative; text-align: center;">
+      <img id="loader" src="tabdiv/loading.gif" alt="loading gif" />
+      <div id="tab" class="vex-tabdiv" width=780 scale=1.0 editor="false"></div>
+    </div>
+  
+  </div>
 </body>
 </html>
