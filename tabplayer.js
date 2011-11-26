@@ -7,15 +7,19 @@ function TabPlayer(tabDiv, tempo) {
   this.pixelMap = [];
 
   this.isPlaying = false;
-  this.AudioDevice;
+  this.audioDevice;
 
   this.cursorCanvas;
   this.cursorCtx;
   this.cursor = { width: 10 };
-  this.intervalOn;
+  this.cursorStop;
   
   this.debug = false;
 }
+
+
+// fix for FireFox bug w/ sink.js - https://bugzilla.mozilla.org/show_bug.cgi?id=699633
+Sink.doInterval.backgroundWork = !/firefox\/8.0/i.test(navigator.userAgent);
 
 
 // Parse the TabDiv Parser object for note names and durations
@@ -84,21 +88,18 @@ TabPlayer.prototype.preparePixelMap = function() {
       }
     } 
   }
-  //console.log(this.pixelMap);
 };
 
 
 TabPlayer.prototype.initCursor = function() {
   // create the canvas used to animate the cursor
-  if (!$('#cursorCanvas').length) {
-  
+  if (!$('#cursorCanvas').length) {  
     $('#tab-wrapper').append(
       $('<canvas></canvas>').attr({ 
         id: "cursorCanvas",
         style: "position: absolute; left: 0; top: 0; z-index: 999; padding: 10px"
         })
     );
-
   }
 
   this.cursorCanvas = $("#cursorCanvas")[0];
@@ -120,7 +121,6 @@ TabPlayer.prototype.initCursor = function() {
   if (this.debug) {
     this.drawDebugRectangles(); 
   }
-
 };
 
 
@@ -137,8 +137,14 @@ TabPlayer.prototype.animateCursor = function() {
       intervalTime = 1000/frameRate,
       framesPerBeat = 60 / this.tempo * frameRate;
 
-  var distance, moves, speed;
 
+  // note duration measured in seconds
+  var currentNoteDuration = 0,
+      currentNoteIncrementer = 0,
+      noteCurrentTime = 0,
+      cursorNextMoveTime = 0,
+      speed = 0;
+  
   var that = this;
   
   var cursorToNextNote = function() {
@@ -147,39 +153,55 @@ TabPlayer.prototype.animateCursor = function() {
     end_x = that.pixelMap[lineIndex].notes[lineNoteIndex].end_x;
 
     // in pixels
-    distance = end_x - that.cursor.x;
+    var distance = end_x - that.cursor.x;
 
+    // in seconds
+    currentNoteDuration = that.score[noteIndex].dur * 60 * that.notesPerBeat / that.tempo;
+    
     // in frames per sec
-    moves =  that.score[noteIndex].dur * that.notesPerBeat * framesPerBeat;
+    var moves = currentNoteDuration * frameRate;
 
     // in pixels
     speed = distance / moves;
 
+    // in seconds
+    currentNoteIncrementer = currentNoteDuration / moves;
+
+    cursorNextMoveTime = noteCurrentTime + currentNoteIncrementer;
+    noteCurrentTime += currentNoteDuration;
+    
+    noteIndex++;
+    lineNoteIndex++;
+
     lineCount = that.pixelMap.length;
     lineNoteCount = that.pixelMap[lineIndex].notes.length;
 
-    noteIndex++;
-    lineNoteIndex++;
     // console.log('distance ', distance);
     // console.log('moves ', moves);
-    // console.log('speed ', speed);  
+    // console.log('speed ', speed);
   };
  
-  intervalOn = setInterval(function() {
-    if (moves > 0) {
-      that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
-      that.cursorCtx.fillStyle = "rgba(200,0,0, 0.5)";
+  that.cursorStop = Sink.doInterval(function() {
+  
+    var currentTime = that.audioDevice.getPlaybackTime() / that.audioDevice.sampleRate;
 
-      that.cursor.x += speed;
-
-      that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
+    if (currentTime < noteCurrentTime) {
       
-      if (that.debug) {
-        that.drawDebugRectangles();
-      } 
+      if (currentTime >= cursorNextMoveTime) {
 
-      moves--;      
-      
+        that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
+        that.cursorCtx.fillStyle = "rgba(200,0,0, 0.5)";
+
+        that.cursor.x += speed;
+
+        that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
+
+        if (that.debug) {
+          that.drawDebugRectangles();
+        }
+        
+        cursorNextMoveTime += currentNoteIncrementer;     
+      }      
     }
     else {
   
@@ -189,7 +211,7 @@ TabPlayer.prototype.animateCursor = function() {
         if (lineCount-1 === lineIndex) {
           // stop animation at end of song
           // console.log('end of song');
-          clearInterval(intervalOn);
+          that.cursorStop();
           that.cursorCtx.clearRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
         }
         else {
@@ -213,19 +235,17 @@ TabPlayer.prototype.animateCursor = function() {
 
 TabPlayer.prototype.stop = function() {
   if (this.isPlaying) {
-    this.AudioDevice.kill();
+    this.audioDevice.kill();
     this.isPlaying = false; 
-  }
-  if (intervalOn) {
-    clearInterval(intervalOn);
-    this.cursorCtx.clearRect(0, 0, this.cursorCanvas.width, this.cursorCanvas.height);
+
+    this.cursorStop();
+    this.cursorCtx.clearRect(0, 0, this.cursorCanvas.width, this.cursorCanvas.height);  
   }
 };
 
 
 TabPlayer.prototype.play = function() { 
   if (!this.isPlaying) {
-    this.animateCursor();
 
     var noteIndex = 0,
       totalNotes = this.score.length,
@@ -305,12 +325,15 @@ TabPlayer.prototype.play = function() {
 
 
     // Create an instance of the AudioDevice class
-    this.AudioDevice = audioLib.AudioDevice(audioCallback, 2);
+    this.audioDevice = audioLib.AudioDevice(audioCallback, 2);
 
-    var sampleRate = this.AudioDevice.sampleRate;
+    var sampleRate = this.audioDevice.sampleRate;
     var lead = audioLib.Oscillator(sampleRate, 440);
   
-    this.isPlaying = true;  
+    this.isPlaying = true;
+
+    // start animation
+    this.animateCursor();
   }
 }
 
