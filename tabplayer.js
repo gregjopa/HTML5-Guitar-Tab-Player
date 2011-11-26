@@ -12,7 +12,7 @@ function TabPlayer(tabDiv, tempo) {
   this.cursorCanvas;
   this.cursorCtx;
   this.cursor = { width: 10 };
-  this.cursorStop;
+  this.cursorStop; // function to stop animation
   
   this.debug = false;
 }
@@ -53,7 +53,7 @@ TabPlayer.prototype.preparePixelMap = function() {
 
   for (var i = 0; i < numLines; i++) { 
     this.pixelMap[i] = { 
-      "line": i, 
+      "line": i,
       "x": tabDivStaves[i].note.getNoteStartX(),
       "y": tabDivStaves[i].note.getYForLine(0),
       "width": tabDivStaves[i].note.getNoteEndX() - tabDivStaves[i].note.getNoteStartX(),
@@ -130,78 +130,60 @@ TabPlayer.prototype.animateCursor = function() {
       lineNoteIndex = 0,
       lineCount = 0,
       lineNoteCount = 0,
-      noteIndex = 0;
-
+      noteIndex = 0,
+      begin_x = 0,
       end_x = 0,
-      frameRate = 60,
-      intervalTime = 1000/frameRate,
-      framesPerBeat = 60 / this.tempo * frameRate;
 
+      frameRate = 60,
+      intervalTime = 1000/frameRate;
 
   // note duration measured in seconds
   var currentNoteDuration = 0,
-      currentNoteIncrementer = 0,
-      noteCurrentTime = 0,
-      cursorNextMoveTime = 0,
-      speed = 0;
-  
+      noteStartTime = 0,
+      noteEndTime = 0,
+      distance = 0;
+
   var that = this;
   
   var cursorToNextNote = function() {
-    that.cursor.y = that.pixelMap[lineIndex].y;
-    that.cursor.x = that.pixelMap[lineIndex].notes[lineNoteIndex].start_x;
+    begin_x = that.pixelMap[lineIndex].notes[lineNoteIndex].start_x;
     end_x = that.pixelMap[lineIndex].notes[lineNoteIndex].end_x;
+    that.cursor.x = begin_x;
+    that.cursor.y = that.pixelMap[lineIndex].y;
+    
+    noteStartTime = that.audioDevice.getPlaybackTime() / that.audioDevice.sampleRate;
 
     // in pixels
-    var distance = end_x - that.cursor.x;
+    distance = end_x - that.cursor.x;
 
     // in seconds
     currentNoteDuration = that.score[noteIndex].dur * 60 * that.notesPerBeat / that.tempo;
-    
-    // in frames per sec
-    var moves = currentNoteDuration * frameRate;
 
-    // in pixels
-    speed = distance / moves;
-
-    // in seconds
-    currentNoteIncrementer = currentNoteDuration / moves;
-
-    cursorNextMoveTime = noteCurrentTime + currentNoteIncrementer;
-    noteCurrentTime += currentNoteDuration;
+    noteEndTime += currentNoteDuration;
     
     noteIndex++;
     lineNoteIndex++;
 
     lineCount = that.pixelMap.length;
     lineNoteCount = that.pixelMap[lineIndex].notes.length;
-
-    // console.log('distance ', distance);
-    // console.log('moves ', moves);
-    // console.log('speed ', speed);
   };
  
   that.cursorStop = Sink.doInterval(function() {
   
     var currentTime = that.audioDevice.getPlaybackTime() / that.audioDevice.sampleRate;
 
-    if (currentTime < noteCurrentTime) {
+    if (currentTime < noteEndTime) {
+
+      var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
+      that.cursor.x = notePercentComplete * distance + begin_x;
+
+      that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
+      that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
       
-      if (currentTime >= cursorNextMoveTime) {
-
-        that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
-        that.cursorCtx.fillStyle = "rgba(200,0,0, 0.5)";
-
-        that.cursor.x += speed;
-
-        that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
-
-        if (that.debug) {
-          that.drawDebugRectangles();
-        }
-        
-        cursorNextMoveTime += currentNoteIncrementer;     
-      }      
+      if (that.debug) {
+        that.drawDebugRectangles();
+      }
+    
     }
     else {
   
@@ -210,7 +192,6 @@ TabPlayer.prototype.animateCursor = function() {
 
         if (lineCount-1 === lineIndex) {
           // stop animation at end of song
-          // console.log('end of song');
           that.cursorStop();
           that.cursorCtx.clearRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
         }
