@@ -231,8 +231,6 @@ TabPlayer.prototype.play = function() {
     var noteIndex = 0,
       totalNotes = this.score.length,
       leadNoteLength = 0,
-      fade = 0,
-      fadePoint = 0;
 
       var that = this;
 
@@ -252,13 +250,11 @@ TabPlayer.prototype.play = function() {
           // Set oscillator frequency
           lead.frequency = Note.fromLatin(noteObj.notes[0]).frequency();
 
-          // Calculate note length in samples
-          leadNoteLength = Math.floor(noteObj.dur * sampleRate * 60 * that.notesPerBeat / that.tempo);
+        // Generate ADSR Envelope
+        adsr.generate();
 
-          // reset fade
-          fade = 0;
-          // define fade point
-          fadePoint = leadNoteLength - 300;
+        // Get oscillator mix and multiply by .5 to reduce amplitude
+        sample = lead.getMix() * adsr.getMix() * 0.5;
 
           noteIndex += 1;
         }
@@ -269,6 +265,8 @@ TabPlayer.prototype.play = function() {
 
       var l = buffer.length,
         sample, note, n, current;
+      // Reset ADSR Envelope
+      adsr.triggerGate(true);
 
       // loop through each sample in the buffer     
       for (current=0; current<l; current+= channelCount){
@@ -277,23 +275,24 @@ TabPlayer.prototype.play = function() {
           loadNote();
         }
 
-        // fade in
-        if (leadNoteLength > fadePoint) {
-          fade = 1 - (leadNoteLength-fadePoint)/300;
-        // fade out
-        } else if (leadNoteLength<300) {
-          fade = leadNoteLength/300;
-        } else {
-          fade = 1;
-        }
+      var noteTime = noteObj.dur * 60 * that.notesPerBeat / that.tempo;
 
         sample = 0;
+      // Calculate note length in samples
+      that.leadNoteLength = Math.floor(noteTime * sampleRate);
 
         // Generate oscillator
         lead.generate();
+      // Set ADSR Envelope Time
+      if (noteTime * 1000 > adsrTotalTime) {
+        adsr.sustainTime = noteTime * 1000 - adsrTotalTime;
+        adsr.attack = adsr.decay = adsr.release = 50;       
+      }
+      else {  
+        var qtr = (noteTime * 1000) / 4;
+        adsr.attack = adsr.decay = adsr.sustainTime = adsr.release = qtr;
+      }
 
-        // Get oscillator mix and multiply by .5 to reduce amplitude
-        sample = lead.getMix()*0.5*fade;
 
         // Fill buffer for each channel
         for (n=0; n<channelCount; n++) {
@@ -304,6 +303,8 @@ TabPlayer.prototype.play = function() {
       } 
     };
 
+  var adsr = audioLib.ADSREnvelope(sampleRate, 50, 50, .4, 50);
+  var adsrTotalTime = adsr.attack + adsr.decay + adsr.release;
 
     // Create an instance of the AudioDevice class
     this.audioDevice = audioLib.AudioDevice(audioCallback, 2);
