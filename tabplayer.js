@@ -8,13 +8,23 @@ function TabPlayer(tabDiv, tempo) {
 
   this.isPlaying = false;
   this.audioDevice;
+  this.startTime = null;
 
   this.cursorCanvas;
   this.cursorCtx;
   this.cursor = { width: 10 };
   this.cursorStop; // function to stop animation
+
+  this.noteIndex = 0;
+  this.leadNoteLength = 0;
   
   this.debug = false;
+
+  // funtions to prepare tab player
+  this.prepareScore();
+  this.preparePixelMap();
+  this.initCursor();
+  this.setupAudio();
 }
 
 
@@ -150,8 +160,8 @@ TabPlayer.prototype.animateCursor = function() {
     end_x = that.pixelMap[lineIndex].notes[lineNoteIndex].end_x;
     that.cursor.x = begin_x;
     that.cursor.y = that.pixelMap[lineIndex].y;
-    
-    noteStartTime = that.audioDevice.getPlaybackTime() / that.audioDevice.sampleRate;
+
+    noteStartTime = (that.audioDevice.getPlaybackTime() - that.startTime) / that.audioDevice.sampleRate;
 
     // in pixels
     distance = end_x - that.cursor.x;
@@ -160,7 +170,7 @@ TabPlayer.prototype.animateCursor = function() {
     currentNoteDuration = that.score[noteIndex].dur * 60 * that.notesPerBeat / that.tempo;
 
     noteEndTime += currentNoteDuration;
-    
+
     noteIndex++;
     lineNoteIndex++;
 
@@ -169,120 +179,124 @@ TabPlayer.prototype.animateCursor = function() {
   };
  
   that.cursorStop = Sink.doInterval(function() {
-  
-    var currentTime = that.audioDevice.getPlaybackTime() / that.audioDevice.sampleRate;
+    if (that.startTime) {
 
-    if (currentTime < noteEndTime) {
+      var currentTime = (that.audioDevice.getPlaybackTime() - that.startTime) / that.audioDevice.sampleRate;
 
-      var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
-      that.cursor.x = notePercentComplete * distance + begin_x;
+      if (currentTime < noteEndTime) {
 
-      that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
-      that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
-      
-      if (that.debug) {
-        that.drawDebugRectangles();
-      }
-    
-    }
-    else {
-  
-      // check for line breaks and end of song
-      if (lineNoteIndex === lineNoteCount && lineNoteIndex != 0) {
+        var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
+        that.cursor.x = notePercentComplete * distance + begin_x;
 
-        if (lineCount-1 === lineIndex) {
-          // stop animation at end of song
-          that.cursorStop();
-          that.cursorCtx.clearRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
-        }
-        else {
-          lineIndex++;
-          lineNoteIndex = 0;
-          that.cursor.y = that.pixelMap[lineIndex].y;
-          cursorToNextNote();         
+        that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
+        that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
+
+        if (that.debug) {
+          that.drawDebugRectangles();
         }
 
       }
       else {
-        cursorToNextNote();
-      }
+
+        // check for line breaks and end of song
+        if (lineNoteIndex === lineNoteCount && lineNoteIndex != 0) {
+
+          if (lineCount-1 === lineIndex) {
+            // stop animation at end of song
+            that.cursorStop();
+            that.cursorCtx.clearRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
+          }
+          else {
+            lineIndex++;
+            lineNoteIndex = 0;
+            that.cursor.y = that.pixelMap[lineIndex].y;
+            cursorToNextNote();         
+          }
+
+        }
+        else {  
+          cursorToNextNote();
+        }
+      } 
     }
 
   },
   intervalTime);
-
 };
 
 
-TabPlayer.prototype.stop = function() {
-  if (this.isPlaying) {
-    this.audioDevice.kill();
-    this.isPlaying = false; 
+TabPlayer.prototype.setupAudio = function() {
 
-    this.cursorStop();
-    this.cursorCtx.clearRect(0, 0, this.cursorCanvas.width, this.cursorCanvas.height);  
-  }
-};
+  var totalNoteCount = this.score.length;
 
+  var that = this;
 
-TabPlayer.prototype.play = function() { 
-  if (!this.isPlaying) {
+  var audioCallback = function(buffer, channelCount) {
+  
+    var l = buffer.length,
+      sample, note, n, current;
 
-    var noteIndex = 0,
-      totalNotes = this.score.length,
-      leadNoteLength = 0,
+    // loop through each sample in the buffer
+    for (current = 0; current < l; current += channelCount) {
 
-      var that = this;
-
-
-      var loadNote = function() {
-        // When at the end of the song stop the audio loop
-        if (noteIndex >= that.score.length) {
-          that.stop();
+      if (that.isPlaying) {
+        if (!that.startTime) {
+          that.startTime = that.audioDevice.getPlaybackTime();
         }
-        else {
-          var noteObj = that.score[noteIndex];
 
-          // Reset oscillator
-          lead.frequency = 0;
-          lead.reset();
+        if (that.leadNoteLength === 0) {
+          loadNote();   
+        }
 
-          // Set oscillator frequency
-          lead.frequency = Note.fromLatin(noteObj.notes[0]).frequency();
+        sample = 0;
 
+        // Generate oscillator
+        lead.generate();
+      
         // Generate ADSR Envelope
         adsr.generate();
 
         // Get oscillator mix and multiply by .5 to reduce amplitude
         sample = lead.getMix() * adsr.getMix() * 0.5;
 
-          noteIndex += 1;
+        // Fill buffer for each channel
+        for (n=0; n<channelCount; n++) {
+          buffer[current + n] = sample;
         }
+
+        that.leadNoteLength -= 1;
+      } 
+      else {
+        that.leadNoteLength = 0;
       }
+    } 
+  };
 
 
-      function audioCallback(buffer, channelCount) {
+  var loadNote = function() {
+    
+    // When at the end of the song stop the audio loop
+    if (that.noteIndex >= totalNoteCount) {
+      that.stop();
+    }
+    else {
+      var noteObj = that.score[that.noteIndex];
 
-      var l = buffer.length,
-        sample, note, n, current;
       // Reset ADSR Envelope
       adsr.triggerGate(true);
 
-      // loop through each sample in the buffer     
-      for (current=0; current<l; current+= channelCount){
+      // Reset oscillator
+      lead.frequency = 0;
+      lead.reset();
 
-        if (leadNoteLength === 0) {
-          loadNote();
-        }
+      // Set oscillator frequency
+      lead.frequency = Note.fromLatin(noteObj.notes[0]).frequency();
 
       var noteTime = noteObj.dur * 60 * that.notesPerBeat / that.tempo;
 
-        sample = 0;
       // Calculate note length in samples
       that.leadNoteLength = Math.floor(noteTime * sampleRate);
 
-        // Generate oscillator
-        lead.generate();
       // Set ADSR Envelope Time
       if (noteTime * 1000 > adsrTotalTime) {
         adsr.sustainTime = noteTime * 1000 - adsrTotalTime;
@@ -293,31 +307,45 @@ TabPlayer.prototype.play = function() {
         adsr.attack = adsr.decay = adsr.sustainTime = adsr.release = qtr;
       }
 
+      that.noteIndex += 1;
+    }
+  }
 
-        // Fill buffer for each channel
-        for (n=0; n<channelCount; n++) {
-          buffer[current + n] = sample;
-        }
 
-        leadNoteLength -= 1;
-      } 
-    };
+  // Create an instance of the AudioDevice class
+  this.audioDevice = audioLib.AudioDevice(audioCallback, 2);
 
+  var sampleRate = this.audioDevice.sampleRate;
+  var lead = audioLib.Oscillator(sampleRate, 440);
+  
   var adsr = audioLib.ADSREnvelope(sampleRate, 50, 50, .4, 50);
   var adsrTotalTime = adsr.attack + adsr.decay + adsr.release;
 
-    // Create an instance of the AudioDevice class
-    this.audioDevice = audioLib.AudioDevice(audioCallback, 2);
+}
 
-    var sampleRate = this.audioDevice.sampleRate;
-    var lead = audioLib.Oscillator(sampleRate, 440);
-  
+
+TabPlayer.prototype.play = function() {
+  if (!this.isPlaying) {
     this.isPlaying = true;
-
+  
     // start animation
     this.animateCursor();
   }
 }
+
+
+TabPlayer.prototype.stop = function() {
+  if (this.isPlaying) {
+  
+    this.isPlaying = false;
+    this.noteIndex = 0;
+    this.leadNoteLength = 0;
+    this.startTime = null;
+    
+    this.cursorStop();
+    this.cursorCtx.clearRect(0, 0, this.cursorCanvas.width, this.cursorCanvas.height);  
+  }
+};
 
 
 TabPlayer.prototype.drawDebugRectangles = function() {
@@ -332,7 +360,7 @@ TabPlayer.prototype.drawDebugRectangles = function() {
     for (var j = 0; j < numLineNotes; j++) {
       this.cursorCtx.strokeStyle = "#0000ff";
       this.cursorCtx.strokeRect(this.pixelMap[i].notes[j].start_x, this.pixelMap[i].y - 10, 
-       this.pixelMap[i].notes[j].end_x - this.pixelMap[i].notes[j].start_x, this.pixelMap[i].height + 30);  
+      this.pixelMap[i].notes[j].end_x - this.pixelMap[i].notes[j].start_x, this.pixelMap[i].height + 30);  
     }
 
   }

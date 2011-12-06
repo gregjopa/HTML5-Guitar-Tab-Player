@@ -130,10 +130,6 @@
 
         // initialize TabPlayer obj
         player = new TabPlayer(tabDiv, tempo);
-        
-        player.prepareScore();
-        player.preparePixelMap();
-        player.initCursor();
 
         clearTimeout(showLoader);
         $('#loader').hide();
