@@ -252,12 +252,18 @@ TabPlayer.prototype.setupAudio = function() {
 
         // Generate oscillator
         lead.generate();
+
+        // Generate Noise
+        noise.generate();
+
+        // Apply Noise to oscilator's fm parameter
+        lead.fm = noise.getMix() * 0.05;
       
         // Generate ADSR Envelope
         adsr.generate();
 
         // Get oscillator mix and multiply by .5 to reduce amplitude
-        sample = lead.getMix() * adsr.getMix() * 0.5;
+        sample = lpf.pushSample(lead.getMix() * adsr.getMix() * 0.5);
 
         // Fill buffer for each channel
         for (n=0; n<channelCount; n++) {
@@ -269,7 +275,12 @@ TabPlayer.prototype.setupAudio = function() {
       else {
         that.leadNoteLength = 0;
       }
-    } 
+    }
+
+    // apply effects    
+    reverb.append(buffer);
+    comp.append(buffer);
+    // distort.append(buffer);     
   };
 
 
@@ -317,10 +328,18 @@ TabPlayer.prototype.setupAudio = function() {
 
   var sampleRate = this.audioDevice.sampleRate;
   var lead = audioLib.Oscillator(sampleRate, 440);
+  lead.waveShape = 'sawtooth';
   
-  var adsr = audioLib.ADSREnvelope(sampleRate, 50, 50, .4, 50);
+  var adsr = audioLib.ADSREnvelope(sampleRate, 35, 15, .4, 100);
   var adsrTotalTime = adsr.attack + adsr.decay + adsr.release;
 
+  var noise	= audioLib.Noise(sampleRate, 'white');
+
+  //effects
+  var lpf	= new audioLib.BiquadFilter.LowPass(sampleRate, 1500, 0.6);
+  var comp	= audioLib.Compressor.createBufferBased(2, sampleRate, 3, 0.5);
+  var reverb = audioLib.Reverb.createBufferBased(2, sampleRate, 2, .75, .55, .5, .25);
+  // var distort = audioLib.Distortion.createBufferBased(2, sampleRate);
 }
 
 
