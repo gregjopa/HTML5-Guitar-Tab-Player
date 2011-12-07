@@ -181,46 +181,45 @@ TabPlayer.prototype.animateCursor = function() {
  
   that.cursorStop = Sink.doInterval(function() {
     if (that.startTime) {
-
       var currentTime = (that.audioDevice.getPlaybackTime() - that.startTime) / that.audioDevice.sampleRate;
+      // handles preBufferSize by starting animation when song actually starts
+      if (currentTime >= 0) {
 
-      if (currentTime < noteEndTime) {
+	      if (currentTime < noteEndTime) {
+	        var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
 
-        var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
-        that.cursor.x = notePercentComplete * distance + begin_x;
+	        that.cursor.x = notePercentComplete * distance + begin_x;
 
-        that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
-        that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
+	        that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
+	        that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
 
-        if (that.debug) {
-          that.drawDebugRectangles();
-        }
+	        if (that.debug) {
+	          that.drawDebugRectangles();
+	        }
+	      }
+	      else {
+	        // check for line breaks and end of song
+	        if (lineNoteIndex === lineNoteCount && lineNoteIndex != 0) {
 
-      }
-      else {
+	          if (lineCount-1 === lineIndex) {
+	            // stop animation at end of song
+	            that.cursorStop();
+	            that.cursorCtx.clearRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
+	          }
+	          else {
+	            lineIndex++;
+	            lineNoteIndex = 0;
+	            that.cursor.y = that.pixelMap[lineIndex].y;
+	            cursorToNextNote();         
+	          }
 
-        // check for line breaks and end of song
-        if (lineNoteIndex === lineNoteCount && lineNoteIndex != 0) {
-
-          if (lineCount-1 === lineIndex) {
-            // stop animation at end of song
-            that.cursorStop();
-            that.cursorCtx.clearRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
-          }
-          else {
-            lineIndex++;
-            lineNoteIndex = 0;
-            that.cursor.y = that.pixelMap[lineIndex].y;
-            cursorToNextNote();         
-          }
-
-        }
-        else {  
-          cursorToNextNote();
-        }
+	        }
+	        else {  
+	          cursorToNextNote();
+	        }
+	      }
       } 
     }
-
   },
   intervalTime);
 };
@@ -242,7 +241,7 @@ TabPlayer.prototype.setupAudio = function() {
 
       if (that.isPlaying) {
         if (!that.startTime) {
-          that.startTime = that.audioDevice.getPlaybackTime();
+          that.startTime = that.audioDevice.getPlaybackTime() + that.audioDevice.preBufferSize;
         }
 
         if (that.leadNoteLength === 0) {
