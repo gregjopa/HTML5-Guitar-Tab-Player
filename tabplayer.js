@@ -45,7 +45,8 @@ TabPlayer.prototype.prepareScore = function() {
     for (var j = 0; j < numLineNotes; j++) {
       // Skip barlines - barline duration = "b"
       if (tabDivNotes[i][j].duration != "b") {
-        var note = tabDivNotes[i][j].keyProps[0].key + tabDivNotes[i][j].keyProps[0].octave;
+	      // Subtract 1 from octave since guitar sheet music is written an octave higher
+        var note = tabDivNotes[i][j].keyProps[0].key + (tabDivNotes[i][j].keyProps[0].octave - 1);
         var duration = tabDivNotes[i][j].ticks/Vex.Flow.RESOLUTION;
     
         this.score.push({ "notes": [note], "dur": duration });
