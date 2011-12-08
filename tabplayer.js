@@ -12,8 +12,8 @@ function TabPlayer(tabDiv, tempo) {
 
   this.cursorCanvas;
   this.cursorCtx;
-  this.cursor = { width: 10 };
-  this.cursorStop; // function to stop animation
+  this.cursor = { width: 5 };
+  this.killAnimation; // function to stop animation
 
   this.noteIndex = 0;
   this.leadNoteLength = 0;
@@ -147,14 +147,12 @@ TabPlayer.prototype.animateCursor = function() {
   
   var lineIndex = 0,
       lineNoteIndex = 0,
-      lineCount = 0,
+      lineCount = this.pixelMap.length,
       lineNoteCount = 0,
       noteIndex = 0,
       begin_x = 0,
       end_x = 0,
-
-      frameRate = 60,
-      intervalTime = 1000/frameRate;
+      frameRate = 60;
 
   // note duration measured in seconds
   var currentNoteDuration = 0,
@@ -163,6 +161,7 @@ TabPlayer.prototype.animateCursor = function() {
       distance = 0;
 
   var that = this;
+
   
   var cursorToNextNote = function() {
     begin_x = that.pixelMap[lineIndex].notes[lineNoteIndex].start_x;
@@ -183,53 +182,41 @@ TabPlayer.prototype.animateCursor = function() {
     noteIndex++;
     lineNoteIndex++;
 
-    lineCount = that.pixelMap.length;
     lineNoteCount = that.pixelMap[lineIndex].notes.length;
   };
+
  
-  that.cursorStop = Sink.doInterval(function() {
-    if (that.startTime) {
-      var currentTime = (that.audioDevice.getPlaybackTime() - that.startTime) / that.audioDevice.sampleRate;
-      // handles preBufferSize by starting animation when song actually starts
-      if (currentTime >= 0) {
+  that.killAnimation = Sink.doInterval(function() {
+    var currentTime = (that.audioDevice.getPlaybackTime() - that.startTime) / that.audioDevice.sampleRate;
 
-        if (currentTime < noteEndTime) {
-          var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
+    // handles preBufferSize by starting animation when song actually starts
+    if (that.startTime && currentTime >= 0) {
+  
+      if (currentTime < noteEndTime) {
+        var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
+        that.cursor.x = notePercentComplete * distance + begin_x;
 
-          that.cursor.x = notePercentComplete * distance + begin_x;
+        that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
+        that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
 
-          that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
-          that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
-
-          if (that.debug) {
-            that.drawDebugRectangles();
-          }
+        if (that.debug) {
+          that.drawDebugRectangles();
         }
-        else {
-          // check for line breaks and end of song
-          if (lineNoteIndex === lineNoteCount && lineNoteIndex != 0) {
-
-            if (lineCount-1 === lineIndex) {
-              // stop animation at end of song
-              that.cursorStop();
-              that.cursorCtx.clearRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
-            }
-            else {
-              lineIndex++;
-              lineNoteIndex = 0;
-              that.cursor.y = that.pixelMap[lineIndex].y;
-              cursorToNextNote();         
-            }
-
-          }
-          else {  
-            cursorToNextNote();
-          }
+      }
+      else {
+        // check for line breaks
+        if (lineNoteIndex === lineNoteCount && lineNoteIndex != 0) {
+          lineIndex++;
+          lineNoteIndex = 0;
+          that.cursor.y = that.pixelMap[lineIndex].y;        
         }
-      } 
+    
+        cursorToNextNote();
+      }
+    
     }
   },
-  intervalTime);
+  1000 / frameRate);
 };
 
 
@@ -389,7 +376,7 @@ TabPlayer.prototype.stop = function() {
     this.leadNoteLength = 0;
     this.startTime = null;
     
-    this.cursorStop();
+    this.killAnimation();
     this.cursorCtx.clearRect(0, 0, this.cursorCanvas.width, this.cursorCanvas.height);  
   }
 };
