@@ -22,7 +22,7 @@
 
     $(document).ready(function() {
 
-			// tabdiv - parse, create canvas, and draw
+      // tabdiv - parse, create canvas, and draw
       var tabDiv = new Vex.Flow.TabDiv("#tab");
 
       var tempo = Number($('#txtTempo').val());
@@ -33,8 +33,8 @@
       
       // click events
       $('#play').click(function() {
-	      player.tempo = Number($('#txtTempo').val());
-	      player.play();
+        player.tempo = Number($('#txtTempo').val());
+        player.play();
       });
     
       $('#stop').click(function() {
@@ -69,19 +69,19 @@
   
     <div id="tab-wrapper" style="position: relative; text-align: center;">
       <div id="tab" class="vex-tabdiv" width=780 scale=1.0 editor="false">
-				tabstave notation=true key=A
-				notes :q (5/2.5/3.7/4) 5h6/3 7/4 |
-				notes :8 [ t12p7p5h7/4 ] :q 7/5 :8 [ 3s5/5 ]
+        tabstave notation=true key=A
+        notes :q (5/2.5/3.7/4) 5h6/3 7/4 |
+        notes :8 [ t12p7p5h7/4 ] :q 7/5 :8 [ 3s5/5 ]
 
-				tabstave notation=true
-				notes :q (8/2.7b9b7/3) (5b6/2.5b6/3)v :8 [ 7s12/4 ]
-				notes [ t:16:9s:8:3s:16:0/4 ]
+        tabstave notation=true
+        notes :q (8/2.7b9b7/3) (5b6/2.5b6/3)v :8 [ 7s12/4 ]
+        notes [ t:16:9s:8:3s:16:0/4 ]
 
-				tabstave notation=true
-				notes :q (5/4.5/5)s(7/4.7/5)s(5/4.5/5)
-				notes :8 [ (5/4.5/5)h(7/5) ] |
-				notes :8 [ t(12/5.12/4)s(5/5.5/4) 3b4/5 ] :h 5V/6
-			</div>
+        tabstave notation=true
+        notes :q (5/4.5/5)s(7/4.7/5)s(5/4.5/5)
+        notes :8 [ (5/4.5/5)h(7/5) ] |
+        notes :8 [ t(12/5.12/4)s(5/5.5/4) 3b4/5 ] :h 5V/6
+      </div>
     </div>
   
   </div>

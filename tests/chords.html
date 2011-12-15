@@ -22,7 +22,7 @@
 
     $(document).ready(function() {
 
-			// tabdiv - parse, create canvas, and draw
+      // tabdiv - parse, create canvas, and draw
       var tabDiv = new Vex.Flow.TabDiv("#tab");
 
       var tempo = Number($('#txtTempo').val());
@@ -33,8 +33,8 @@
       
       // click events
       $('#play').click(function() {
-	      player.tempo = Number($('#txtTempo').val());
-	      player.play();
+        player.tempo = Number($('#txtTempo').val());
+        player.play();
       });
     
       $('#stop').click(function() {
@@ -69,13 +69,13 @@
   
     <div id="tab-wrapper" style="position: relative; text-align: center;">
       <div id="tab" class="vex-tabdiv" width=780 scale=1.0 editor="false">
-				tabstave notation=true key=C
-				notes :w (0/5.2/4.2/3.0/2.0/1) | :w (0/5.2/4.2/3.1/2.0/1) |
-				notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1)
-				notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1) |  
-				notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
-				notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
-			</div>
+        tabstave notation=true key=C
+        notes :w (0/5.2/4.2/3.0/2.0/1) | :w (0/5.2/4.2/3.1/2.0/1) |
+        notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1)
+        notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1) |  
+        notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
+        notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
+      </div>
     </div>
   
   </div>
