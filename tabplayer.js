@@ -16,8 +16,11 @@ function TabPlayer(tabDiv, tempo) {
   this.killAnimation; // function to stop animation
 
   this.noteIndex = 0;
-  this.leadNoteLength = 0;
-  
+
+  this.beatTickCounter = 1;  
+  this.noteTickCounter = 1;
+  this.tick = 0;
+
   this.debug = false;
 
   // funtions to prepare tab player
@@ -222,42 +225,54 @@ TabPlayer.prototype.animateCursor = function() {
 
 TabPlayer.prototype.setupAudio = function() {
 
-  var totalNoteCount = this.score.length;
-  var leadCount = 0;
+  var totalNoteCount = this.score.length,
+      leadCount = 0,
+      noteDuration = .25;
 
   var that = this;
 
   var audioCallback = function(buffer, channelCount) {
   
     var l = buffer.length,
-      sample, note, n, current;
+        sample, note, n, current, singleTick;
 
     // loop through each sample in the buffer
     for (current = 0; current < l; current += channelCount) {
 
       if (that.isPlaying) {
+  
         if (!that.startTime) {
           that.startTime = that.audioDevice.getPlaybackTime() + that.audioDevice.preBufferSize;
         }
 
-        if (that.leadNoteLength === 0) {
-          loadNote();   
+        singleTick = 1 / that.audioDevice.sampleRate * that.tempo / 60;
+
+        that.beatTickCounter = that.beatTickCounter + singleTick;
+        that.noteTickCounter = that.noteTickCounter + singleTick / (noteDuration*4);
+
+        if (that.noteTickCounter >= 1) {
+          that.noteTickCounter = 0;
+          loadNote();
+        }
+        
+        if (that.beatTickCounter >= 1) {
+          that.beatTickCounter = 0;
+          sampler.noteOn(that.tick ? 440 : 659.26);
+          that.tick = (that.tick + 1) % that.notesPerBeat;
         }
 
-        sample = 0;
-
-        // Generate ADSR Envelope
+        sampler.generate();
         adsr.generate();
-
-        // Generate Noise
         noise.generate();
+
+        sample = 0;
 
         for (i=0; i<leadCount; i++){
           // Apply Noise to oscilator's fm parameter
           leads[i].fm = noise.getMix() * 0.1;         
           leads[i].generate();
-          // Get osc mix and adsr mix and multiply by .5 to reduce amplitude
-          sample += lpf.pushSample(leads[i].getMix() * adsr.getMix() * 0.5);
+
+          sample += sampler.getMix() + lpf.pushSample(leads[i].getMix() * adsr.getMix() * 0.5);
         }
 
         // Fill buffer for each channel
@@ -265,18 +280,14 @@ TabPlayer.prototype.setupAudio = function() {
           buffer[current + n] = sample;
         }
 
-        that.leadNoteLength -= 1;
       } 
-      else {
-        that.leadNoteLength = 0;
-      }
     }
 
 
     // apply effects    
-    reverb.append(buffer);
     comp.append(buffer);
-    // distort.append(buffer);     
+    // reverb.append(buffer);
+    // distort.append(buffer);
   };
 
 
@@ -289,7 +300,7 @@ TabPlayer.prototype.setupAudio = function() {
     else {
   
       var noteObj = that.score[that.noteIndex],
-          i;
+          noteTime, qtr, i;
           
       leadCount = noteObj.notes.length;   
        
@@ -299,14 +310,13 @@ TabPlayer.prototype.setupAudio = function() {
       }
 
       // Set oscillator frequency
-      for (i=0; i < leadCount; i++){
+      for (i=0; i < leadCount; i++) {
         leads[i].frequency = Note.fromLatin(noteObj.notes[i]).frequency();
       }
 
-      var noteTime = noteObj.dur * 60 * that.notesPerBeat / that.tempo;
+      noteDuration = noteObj.dur;
 
-      // Calculate note length in samples
-      that.leadNoteLength = Math.floor(noteTime * sampleRate);
+      noteTime = noteObj.dur * 60 * that.notesPerBeat / that.tempo;
 
       // Reset ADSR Envelope
       adsr.triggerGate(true);
@@ -317,7 +327,7 @@ TabPlayer.prototype.setupAudio = function() {
         adsr.attack = adsr.decay = adsr.release = 50;       
       }
       else {  
-        var qtr = (noteTime * 1000) / 4;
+        qtr = (noteTime * 1000) / 4;
         adsr.attack = adsr.decay = adsr.sustainTime = adsr.release = qtr;
       }
 
@@ -332,12 +342,12 @@ TabPlayer.prototype.setupAudio = function() {
   var sampleRate = this.audioDevice.sampleRate;
   //var lead = audioLib.Oscillator(sampleRate, 440);
   var leads = [
-    new audioLib.Oscillator(sampleRate, 0),
-    new audioLib.Oscillator(sampleRate, 0),
-    new audioLib.Oscillator(sampleRate, 0),
-    new audioLib.Oscillator(sampleRate, 0),
-    new audioLib.Oscillator(sampleRate, 0),
-    new audioLib.Oscillator(sampleRate, 0)
+    audioLib.Oscillator(sampleRate, 0),
+    audioLib.Oscillator(sampleRate, 0),
+    audioLib.Oscillator(sampleRate, 0),
+    audioLib.Oscillator(sampleRate, 0),
+    audioLib.Oscillator(sampleRate, 0),
+    audioLib.Oscillator(sampleRate, 0)
   ];
   
   for (var i=0; i < leads.length; i++) {
@@ -350,16 +360,28 @@ TabPlayer.prototype.setupAudio = function() {
 
   var noise = audioLib.Noise(sampleRate, 'white');
 
-  //effects
+  // effects
   var lpf = new audioLib.BiquadFilter.LowPass(sampleRate, 1500, 0.6);
   var comp  = audioLib.Compressor.createBufferBased(2, sampleRate, 3, 0.5);
-  var reverb = audioLib.Reverb.createBufferBased(2, sampleRate, 2, .75, .55, .5, .25);
+  // var reverb = audioLib.Reverb.createBufferBased(2, sampleRate, 2, .75, .55, .5, .25);
   // var distort = audioLib.Distortion.createBufferBased(2, sampleRate);
+
+  // metronome
+  var sampler = audioLib.Sampler(sampleRate);
+  var sample = atob(samples.snare);
+  sampler.loadWav(sample, true);
 }
 
 
 TabPlayer.prototype.play = function() {
   if (!this.isPlaying) {
+  
+    if (this.noteIndex === 0) {
+      this.beatTickCounter = 1;
+      this.noteTickCounter = 1;
+      this.tick = 0;
+    }
+  
     this.isPlaying = true;
   
     // start animation
@@ -373,7 +395,6 @@ TabPlayer.prototype.stop = function() {
   
     this.isPlaying = false;
     this.noteIndex = 0;
-    this.leadNoteLength = 0;
     this.startTime = null;
     
     this.killAnimation();
