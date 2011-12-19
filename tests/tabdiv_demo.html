@@ -44,7 +44,7 @@
       $('#debug-grid').click(function() {
         if (player.debug) {
           player.debug = false;
-          player.cursorCtx.clearRect(0, 0, player.cursorCanvas.width, player.cursorCanvas.height);
+          player.clearDebugRectangles();
         }
         else {
           player.debug = true;

@@ -10,8 +10,7 @@ function TabPlayer(tabDiv, tempo) {
   this.audioDevice;
   this.startTime = null;
 
-  this.cursorCanvas;
-  this.cursorCtx;
+  this.cursorDiv;
   this.cursor = { width: 5 };
   this.killAnimation; // function to stop animation
 
@@ -26,7 +25,7 @@ function TabPlayer(tabDiv, tempo) {
   // funtions to prepare tab player
   this.prepareScore();
   this.preparePixelMap();
-  this.initCursor();
+  this.initializeCursor();
   this.setupAudio();
 }
 
@@ -113,36 +112,40 @@ TabPlayer.prototype.preparePixelMap = function() {
 };
 
 
-TabPlayer.prototype.initCursor = function() {
-  // create the canvas used to animate the cursor
-  if (!$('#cursorCanvas').length) {  
-    $('#tab-wrapper').append(
-      $('<canvas></canvas>').attr({ 
-        id: "cursorCanvas",
-        style: "position: absolute; left: 0; top: 0; z-index: 999; padding: 10px"
-        })
-    );
+TabPlayer.prototype.translateCursor = function(x, y) {
+  styleStr = "translate("+ x +"px, "+ y +"px)"; 
+  this.cursorDiv.style.webkitTransform = this.cursorDiv.style.MozTransform = this.cursorDiv.style.transform = styleStr;   
+}
+
+
+TabPlayer.prototype.initializeCursor = function() {
+
+  // add cursor div to the dom
+  if (!$('#tab-cursor').length) {
+    $('#tab-wrapper').append('<div id="tab-cursor"></div>');
   }
 
-  this.cursorCanvas = $("#cursorCanvas")[0];
-  this.cursorCtx = this.cursorCanvas.getContext('2d');
-
-  this.cursorCanvas.width = this.tabDiv.width;
-  this.cursorCanvas.height = this.tabDiv.height;
+  var $cursor = $("#tab-cursor");
+  this.cursorDiv = $cursor[0];
 
   var firstStave = this.pixelMap[0];
   var firstNote = this.pixelMap[0].notes[0];
-  
+
   this.cursor.x = firstNote.start_x;
   this.cursor.y = firstStave.y;
   this.cursor.height = firstStave.height;
 
-  this.cursorCtx.fillStyle = "rgba(200,0,0, 0.5)";
-  this.cursorCtx.fillRect(this.cursor.x, this.cursor.y, this.cursor.width, this.cursor.height);
+  $cursor.css({
+      'width' : this.cursor.width,
+      'height' : this.cursor.height,
+      'background-color' : 'rgba(200,0,0, 0.5)',
+      'position' : 'absolute',
+      'left' : 10,
+      'top' : 10,
+      '-webkit-transform' : 'translateZ(0px)'
+  });
   
-  if (this.debug) {
-    this.drawDebugRectangles(); 
-  }
+  this.translateCursor(this.cursor.x, this.cursor.y);
 };
 
 
@@ -195,16 +198,11 @@ TabPlayer.prototype.animateCursor = function() {
     // handles preBufferSize by starting animation when song actually starts
     if (that.startTime && currentTime >= 0) {
   
-      if (currentTime < noteEndTime) {
+      if (currentTime < noteEndTime) {  
         var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
         that.cursor.x = notePercentComplete * distance + begin_x;
 
-        that.cursorCtx.clearRect(0, 0, that.cursorCanvas.width, that.cursorCanvas.height);
-        that.cursorCtx.fillRect(that.cursor.x, that.cursor.y, that.cursor.width, that.cursor.height);
-
-        if (that.debug) {
-          that.drawDebugRectangles();
-        }
+        that.translateCursor(that.cursor.x, that.cursor.y);
       }
       else {
         // check for line breaks
@@ -398,25 +396,47 @@ TabPlayer.prototype.stop = function() {
     this.startTime = null;
     
     this.killAnimation();
-    this.cursorCtx.clearRect(0, 0, this.cursorCanvas.width, this.cursorCanvas.height);  
+    this.initializeCursor();
   }
 };
 
 
 TabPlayer.prototype.drawDebugRectangles = function() {
+  
+  // create a canvas on top of tab for drawing rectangles 
+  if (!$('#debugCanvas').length) {
+    $('#tab-wrapper').append(
+      $('<canvas></canvas>').attr({ 
+        id: "debugCanvas",
+        style: "position: absolute; left: 0; top: 0; z-index: 999; padding: 10px",
+        width: this.tabDiv.width,
+        height: this.tabDiv.height
+      })
+    );
+  }
+
+  var debugCtx = $('#debugCanvas')[0].getContext('2d');
   var numLines = this.pixelMap.length;
+  
   for (var i = 0; i < numLines; i++ ) {
-    this.cursorCtx.strokeStyle = "#00ff00";
-    this.cursorCtx.strokeRect(this.pixelMap[i].x, this.pixelMap[i].y, 
+    debugCtx.strokeStyle = "#00ff00";
+    debugCtx.strokeRect(this.pixelMap[i].x, this.pixelMap[i].y, 
       this.pixelMap[i].width, this.pixelMap[i].height);
 
     var numLineNotes = this.pixelMap[i].notes.length;
 
     for (var j = 0; j < numLineNotes; j++) {
-      this.cursorCtx.strokeStyle = "#0000ff";
-      this.cursorCtx.strokeRect(this.pixelMap[i].notes[j].start_x, this.pixelMap[i].y - 10, 
-      this.pixelMap[i].notes[j].end_x - this.pixelMap[i].notes[j].start_x, this.pixelMap[i].height + 30);  
+      debugCtx.strokeStyle = "#0000ff";
+      debugCtx.strokeRect(this.pixelMap[i].notes[j].start_x, this.pixelMap[i].y - 10, 
+        this.pixelMap[i].notes[j].end_x - this.pixelMap[i].notes[j].start_x, this.pixelMap[i].height + 30);  
     }
 
   }
+}
+
+
+TabPlayer.prototype.clearDebugRectangles = function() {
+  var debugCanvas = $('#debugCanvas')[0];
+  debugCanvas.width = this.tabDiv.width;
+  debugCanvas.height = this.tabDiv.height;
 }
