@@ -12,7 +12,6 @@ function TabPlayer(tabDiv, tempo) {
 
   this.cursorDiv;
   this.cursor = { width: 5 };
-  this.killAnimation; // function to stop animation
 
   this.noteIndex = 0;
 
@@ -27,6 +26,7 @@ function TabPlayer(tabDiv, tempo) {
   this.preparePixelMap();
   this.initializeCursor();
   this.setupAudio();
+  this.resetCursor = this.setupCursorAnimation();
 }
 
 
@@ -113,7 +113,7 @@ TabPlayer.prototype.preparePixelMap = function() {
 
 
 TabPlayer.prototype.translateCursor = function(x, y) {
-  styleStr = "translate("+ x +"px, "+ y +"px)"; 
+  styleStr = "translate("+ x +"px, "+ y +"px)";
   this.cursorDiv.style.webkitTransform = this.cursorDiv.style.MozTransform = this.cursorDiv.style.transform = styleStr;   
 }
 
@@ -149,7 +149,7 @@ TabPlayer.prototype.initializeCursor = function() {
 };
 
 
-TabPlayer.prototype.animateCursor = function() {
+TabPlayer.prototype.setupCursorAnimation = function() {
   
   var lineIndex = 0,
       lineNoteIndex = 0,
@@ -157,8 +157,7 @@ TabPlayer.prototype.animateCursor = function() {
       lineNoteCount = 0,
       noteIndex = 0,
       begin_x = 0,
-      end_x = 0,
-      frameRate = 60;
+      end_x = 0;
 
   // note duration measured in seconds
   var currentNoteDuration = 0,
@@ -191,13 +190,13 @@ TabPlayer.prototype.animateCursor = function() {
     lineNoteCount = that.pixelMap[lineIndex].notes.length;
   };
 
- 
-  that.killAnimation = Sink.doInterval(function() {
+
+  function render() {
     var currentTime = (that.audioDevice.getPlaybackTime() - that.startTime) / that.audioDevice.sampleRate;
 
     // handles preBufferSize by starting animation when song actually starts
     if (that.startTime && currentTime >= 0) {
-  
+
       if (currentTime < noteEndTime) {  
         var notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
         that.cursor.x = notePercentComplete * distance + begin_x;
@@ -211,13 +210,29 @@ TabPlayer.prototype.animateCursor = function() {
           lineNoteIndex = 0;
           that.cursor.y = that.pixelMap[lineIndex].y;        
         }
-    
+
         cursorToNextNote();
       }
-    
+
     }
-  },
-  1000 / frameRate);
+  }
+ 
+  (function animloop(){
+    requestAnimFrame(animloop);
+    if (that.isPlaying) {
+      render();     
+    }
+  })();
+
+  var resetCursor = function() {  
+    lineIndex = 0,
+    lineNoteIndex = 0,
+    noteIndex = 0,
+    noteStartTime = 0,
+    noteEndTime = 0;
+  };
+
+  return resetCursor;
 };
 
 
@@ -381,9 +396,6 @@ TabPlayer.prototype.play = function() {
     }
   
     this.isPlaying = true;
-  
-    // start animation
-    this.animateCursor();
   }
 }
 
@@ -395,7 +407,7 @@ TabPlayer.prototype.stop = function() {
     this.noteIndex = 0;
     this.startTime = null;
     
-    this.killAnimation();
+    this.resetCursor();
     this.initializeCursor();
   }
 };
@@ -440,3 +452,16 @@ TabPlayer.prototype.clearDebugRectangles = function() {
   debugCanvas.width = this.tabDiv.width;
   debugCanvas.height = this.tabDiv.height;
 }
+
+
+// shim layer with setTimeout fallback
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       || 
+          window.webkitRequestAnimationFrame || 
+          window.mozRequestAnimationFrame    || 
+          window.oRequestAnimationFrame      || 
+          window.msRequestAnimationFrame     || 
+          function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+          };
+})();
