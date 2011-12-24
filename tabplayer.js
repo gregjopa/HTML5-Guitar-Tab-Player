@@ -297,10 +297,7 @@ TabPlayer.prototype.setupAudio = function() {
       } 
     }
 
-
-    // apply effects    
     comp.append(buffer);
-    // distort.append(buffer);
   };
 
 
@@ -376,7 +373,6 @@ TabPlayer.prototype.setupAudio = function() {
   // effects
   var lpf = new audioLib.BiquadFilter.LowPass(sampleRate, 1500, 0.6);
   var comp  = audioLib.Compressor.createBufferBased(2, sampleRate, 3, 0.5);
-  // var distort = audioLib.Distortion.createBufferBased(2, sampleRate);
   var reverb = audioLib.Reverb(sampleRate, 2, .1, .8, .5, .25);
 
   // metronome
