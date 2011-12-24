@@ -285,12 +285,13 @@ TabPlayer.prototype.setupAudio = function() {
           leads[i].fm = noise.getMix() * 0.1;         
           leads[i].generate();
 
-          sample += sampler.getMix() + lpf.pushSample(leads[i].getMix() * adsr.getMix() * 0.5);
+          sample += lpf.pushSample(leads[i].getMix() * adsr.getMix() * 0.5); 
         }
 
         // Fill buffer for each channel
         for (n=0; n<channelCount; n++) {
-          buffer[current + n] = sample;
+	        reverb.pushSample(sample, n);
+          buffer[current + n] = reverb.sample[n] + sampler.getMix();
         }
 
       } 
@@ -299,7 +300,6 @@ TabPlayer.prototype.setupAudio = function() {
 
     // apply effects    
     comp.append(buffer);
-    // reverb.append(buffer);
     // distort.append(buffer);
   };
 
@@ -376,8 +376,8 @@ TabPlayer.prototype.setupAudio = function() {
   // effects
   var lpf = new audioLib.BiquadFilter.LowPass(sampleRate, 1500, 0.6);
   var comp  = audioLib.Compressor.createBufferBased(2, sampleRate, 3, 0.5);
-  // var reverb = audioLib.Reverb.createBufferBased(2, sampleRate, 2, .75, .55, .5, .25);
   // var distort = audioLib.Distortion.createBufferBased(2, sampleRate);
+  var reverb = audioLib.Reverb(sampleRate, 2, .1, .8, .5, .25);
 
   // metronome
   var sampler = audioLib.Sampler(sampleRate);
