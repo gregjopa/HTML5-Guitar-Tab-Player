@@ -22,50 +22,14 @@
     var tempo, showLoader, tabDiv, player;
 
     Vex.Flow.TabDiv.SEL = null; // vexflow - disable automatic initialization
-  
-
-    function play() {
-      player.tempo = Number($('#txtTempo').val());
-      player.play();
-
-      var playDesc = "playing " + $("input[name='tab']:checked").val();
-      $('#desc').empty().append(playDesc);
-    }
-  
-
-    function stop() {
-      player.stop();
-      $('#desc').empty();
-    }
  
    
     $(document).ready(function() {
       
-      // click events
-      $('#play').click(function() {
-        play();
-      });
-    
-      $('#stop').click(function() {
-        stop();
-      });
-      
       $('input[name="tab"]').click(function() {
         loadXML(this.value);
       });
-
-      $('#debug-grid').click(function() {
-        if (player.debug) {
-          player.debug = false;
-          player.clearDebugRectangles();
-        }
-        else {
-          player.debug = true;
-          player.drawDebugRectangles();
-        }       
-      });
       
-    
       // load tab
       loadXML($("input[name='tab']:checked").val()); 
     });
@@ -143,7 +107,7 @@
 </head>
 
 <body>
-  <div style="width:800px; margin:0px auto;">
+  <div style="width:960px; margin:0px auto;">
 
     <h1>HTML5 Guitar Tab Player - Web Audio API</h1>
     <form name="tabform">
@@ -160,16 +124,10 @@
     </form>
     <hr />
     <br />
-
-    Tempo (bpm): <input type="text" id="txtTempo" value="120" />
-    <button id="play">Play</button>
-    <button id="stop">Stop</button>
-    <button id="debug-grid">Toggle Debug Grid</button>
-    <label id="desc" style="margin-left:40px;"></label>
   
-    <div id="tab-wrapper" style="position: relative; text-align: center;">
+    <div id="tab-wrapper" style="position: relative;">
       <img id="loader" src="tabdiv/loading.gif" alt="loading gif" />
-      <div id="tab" class="vex-tabdiv" width=780 scale=1.0 editor="false"></div>
+      <div id="tab" class="vex-tabdiv" width=940 scale=1.0 editor="false"></div>
     </div>
   
   </div>

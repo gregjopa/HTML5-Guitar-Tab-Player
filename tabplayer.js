@@ -27,6 +27,7 @@ function TabPlayer(tabDiv, tempo) {
   this.initializeCursor();
   this.setupAudio();
   this.resetCursor = this.setupCursorAnimation();
+  this.addToolbar();
 }
 
 
@@ -122,7 +123,9 @@ TabPlayer.prototype.initializeCursor = function() {
 
   // add cursor div to the dom
   if (!$('#tab-cursor').length) {
-    $('#tab-wrapper').append('<div id="tab-cursor"></div>');
+    var $tab = $(this.tabDiv.sel);
+    $tab.css('position', 'relative');
+    $tab.append('<div id="tab-cursor"></div>');
   }
 
   var $cursor = $("#tab-cursor");
@@ -135,13 +138,15 @@ TabPlayer.prototype.initializeCursor = function() {
   this.cursor.y = firstStave.y;
   this.cursor.height = firstStave.height;
 
+  var $vexCanvas = $(this.tabDiv.ctx_sel.selector); 
+
   $cursor.css({
       'width' : this.cursor.width,
       'height' : this.cursor.height,
       'background-color' : 'rgba(200,0,0, 0.5)',
       'position' : 'absolute',
-      'left' : 10,
-      'top' : 10,
+      'left' : ($vexCanvas.outerWidth() - $vexCanvas.width())/2,
+      'top' : ($vexCanvas.outerHeight() - $vexCanvas.height())/2,
       '-webkit-transform' : 'translateZ(0px)'
   });
   
@@ -409,14 +414,67 @@ TabPlayer.prototype.stop = function() {
 };
 
 
+TabPlayer.prototype.addToolbar = function() {
+
+  if (!$('#tempo').length) {
+
+    var html = '<div class="tab-toolbar" style="font-size: 15px; color:black;">';
+
+    // tempo slider <input type="range"  min="0" max="100" />
+    html += 'Tempo (bpm): <input id="tempo" type="range" min="10" max="250" value="' + this.tempo + '" /> ';
+  
+    // play button
+    html += '<button id="play">Play</button> ';
+
+    // stop button
+    html += '<button id="stop">Stop</button> ';
+
+    // debug grid button
+    html += '<button id="debug-grid">Toggle Debug Grid</button>';
+
+    html += '</div>'
+  
+    $(this.tabDiv.sel).before(html);
+
+    var that = this;
+
+    // event listeners
+    $('#play').click(function() {
+      that.play();
+    });
+
+    $('#stop').click(function() {
+      that.stop();
+    });
+
+    $('#tempo').change(function() {
+      that.tempo = this.value;
+    });
+
+    $('#debug-grid').click(function() {
+      if (that.debug) {
+        that.debug = false;
+        that.clearDebugRectangles();
+      }
+      else {
+        that.debug = true;
+        that.drawDebugRectangles();
+      }
+    });
+  }
+
+}
+
+
 TabPlayer.prototype.drawDebugRectangles = function() {
   
   // create a canvas on top of tab for drawing rectangles 
   if (!$('#debugCanvas').length) {
-    $('#tab-wrapper').append(
+    $(this.tabDiv.sel).append(
       $('<canvas></canvas>').attr({ 
         id: "debugCanvas",
-        style: "position: absolute; left: 0; top: 0; z-index: 999; padding: 10px",
+        style: "position: absolute; z-index: 999; left: " + 
+          this.cursorDiv.style.left + "; top: " + this.cursorDiv.style.top + ";" ,
         width: this.tabDiv.width,
         height: this.tabDiv.height
       })

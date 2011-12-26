@@ -30,52 +30,23 @@
       // initialize TabPlayer
       var player = new TabPlayer(tabDiv, tempo);
 
-      
-      // click events
-      $('#play').click(function() {
-        player.tempo = Number($('#txtTempo').val());
-        player.play();
-      });
-    
-      $('#stop').click(function() {
-        player.stop();
-      });
-
-      $('#debug-grid').click(function() {
-        if (player.debug) {
-          player.debug = false;
-          player.clearDebugRectangles();
-        }
-        else {
-          player.debug = true;
-          player.drawDebugRectangles();
-        }       
-      });
-    
     });
   </script>
 
 </head>
 
 <body>
-  <div style="width:800px; margin:0px auto;">
+  <div style="width:960px; margin:0px auto;">
 
     <h1>Chord Test w/ Tab Player</h1>
-
-    Tempo (bpm): <input type="text" id="txtTempo" value="90" />
-    <button id="play">Play</button>
-    <button id="stop">Stop</button>
-    <button id="debug-grid">Toggle Debug Grid</button>
   
-    <div id="tab-wrapper" style="position: relative; text-align: center;">
-      <div id="tab" class="vex-tabdiv" width=780 scale=1.0 editor="false">
-        tabstave notation=true key=C
-        notes :w (0/5.2/4.2/3.0/2.0/1) | :w (0/5.2/4.2/3.1/2.0/1) |
-        notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1)
-        notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1) |  
-        notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
-        notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
-      </div>
+    <div id="tab" class="vex-tabdiv" width=940 scale=1.0 editor="false">
+      tabstave notation=true key=C
+      notes :w (0/5.2/4.2/3.0/2.0/1) | :w (0/5.2/4.2/3.1/2.0/1) |
+      notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1)
+      notes :q (3/5.2/4.0/3.1/2.0/1) :q (3/5.2/4.0/3.1/2.0/1) |  
+      notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
+      notes :q (3/6.2/5.0/4.0/3.3/2.3/1) :q (3/6.2/5.0/4.0/3.3/2.3/1)
     </div>
   
   </div>
