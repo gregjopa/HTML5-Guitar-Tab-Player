@@ -1,6 +1,6 @@
 ## Example usage
 
-```javascript
+'''javascript
 /* Using TavDiv */
 
 // disable tabdiv processing on page load
@@ -16,4 +16,4 @@ $(document).ready(function() {
 
 });
 
-```
+'''
