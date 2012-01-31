@@ -18,7 +18,7 @@
  explicit permission of the copyright holder.
 
  Build ID: prod-2@
- Build date: 2011-12-23 15:44:07.863366
+ Build date: 2012-01-29 20:01:00.348670
 
 */
 var a;Vex.Flow.VexTab=function(){this.init()};a=Vex.Flow.VexTab.prototype;a.init=function(){this.elements={staves:[],tabnotes:[],notes:[],ties:[],beams:[]};this.state={key_manager:new Vex.Flow.KeyManager("c"),clef:"treble",current_line:0,current_stave:-1,current_duration:"8",current_key:"C",has_notation:false,has_tab:true,beam_start:null};this.music=new Vex.Flow.Music;this.valid=false;this.last_error="";this.height=this.last_error_line=0;this.tuning=new Vex.Flow.Tuning};a.isValid=function(){return this.valid};

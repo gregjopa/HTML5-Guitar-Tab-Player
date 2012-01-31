@@ -1,13 +1,13 @@
 div.vex-tabdiv {
   font-family: Arial, sans-serif;
   font-size: 18px; 
-  /*padding-top: 10px;*/
   color: #554;
 }
 
 div.vex-tabdiv .vex-canvas {
-  background: #eed;
-  border: 10px solid #ddc;
+  background: whiteSmoke;
+  border: 1px solid #ddd;
+  border-radius: 3px;
 }
 
 div.vex-tabdiv .editor {

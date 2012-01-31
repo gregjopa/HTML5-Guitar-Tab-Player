@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+  <title>Music Tracker Demo</title>
+
+  <!-- audio libraries -->
+  <script src="../support/audiolib.min.js"></script>
+  <script src="../support/music.js"></script>
+
+  <!-- music tracker module -->
+  <script src="../src/music-tracker.js"></script>
+
+  <!-- base64 encoded string of drum samples -->
+  <script src="drum-samples.js"></script>
+
+  <!-- jquery for easy dom interaction -->
+  <script src="../support/jquery-1.7.1.min.js"></script>
+
+  <script>
+		$(document).ready(function() {
+
+		    // music score
+		    majorScale = [
+		    // measure 1
+		    {
+		        notes: ['C4'],
+		        dur: 1 / 4
+		    },
+		    {
+		        notes: ['D4'],
+		        dur: 1 / 4
+		    },
+		    {
+		        notes: ['E4'],
+		        dur: 1 / 4
+		    },
+		    {
+		        notes: ['F4'],
+		        dur: 1 / 4
+		    },
+		    // measure 2
+		    {
+		        notes: ['G4'],
+		        dur: 1 / 4
+		    },
+		    {
+		        notes: ['A4'],
+		        dur: 1 / 4
+		    },
+		    {
+		        notes: ['B4'],
+		        dur: 1 / 4
+		    },
+		    {
+		        notes: ['C5'],
+		        dur: 1 / 4
+		    }
+		    ];
+
+		    MusicTracker.init({
+		        score: majorScale,
+		        tempo: 120,
+		        isPlaying: false,
+		        hasMetronome: true,
+		        drumSample: samples.snare
+		    });
+
+
+		    // event listeners
+		    $('#play').click(function() {
+		        MusicTracker.play();
+		    });
+
+		    $('#pause').click(function() {
+		        MusicTracker.pause();
+		    });
+
+		    $('#stop').click(function() {
+		        MusicTracker.stop();
+		    });
+
+		    $('#loop').change(function() {
+		        if ($(this).is(':checked')) {
+		            MusicTracker.setIsLooping(true);
+		        } else {
+		            MusicTracker.setIsLooping(false);
+		        }
+		    });
+
+		    $('#metronome').change(function() {
+		        if ($(this).is(':checked')) {
+		            MusicTracker.setHasMetronome(true);
+		        } else {
+		            MusicTracker.setHasMetronome(false);
+		        }
+		    });
+
+		    $('#tempo').change(function() {
+		        MusicTracker.setTempo(this.value);
+		    });
+
+		    $('#volume').change(function() {
+		        MusicTracker.setVolume(this.value);
+		    });
+
+		});
+  </script>
+
+</head>
+<body>  
+  <button id="play">Play</button>
+  <button id="pause">Pause</button>
+  <button id="stop">Stop</button>
+  <br />
+  <br />
+  <input type="checkbox" id="loop" checked /> Loop
+  <br />
+  <input type="checkbox" id="metronome" checked /> Metronome
+  <br />
+  <br />
+  Tempo: <input type="range" id="tempo" min="20" max="300" value="120" />
+  <br />
+  Volume: <input type="range" id="volume" min="0" max="10" value="5" />
+</body>
+</html>

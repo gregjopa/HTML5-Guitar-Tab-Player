@@ -1,42 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-
+  <meta charset="utf-8">
   <title>TabDiv Test w/ Tab Player</title>
-  <script src="../js/jquery-1.7.1.min.js"></script>
-  <script src="../js/raphael-min.js"></script>
-  <script src="../js/music.js"></script>
-  <script src="../js/audiolib.min.js"></script>
-  <script src="../js/drum-samples.js"></script>
 
-  <!--vexflow.com guitar tab app-->
-  <link href="../tabdiv/tabdiv.css" media="screen" rel="stylesheet" type="text/css" />
-  <script src="../tabdiv/vexflow.js"></script>
-  <script src="../tabdiv/vextabdiv.js"></script>
+  <!-- styles -->
+  <link href="../support/vexflow/tabdiv.css" rel="stylesheet">
+  <link href="../support/jqueryui/css/custom-theme/jquery-ui-1.8.17.custom.css" rel="stylesheet" />
+  <link href="../src/tab-player.css" rel="stylesheet">
 
-  <!-- custom js -->
-  <script src="../tabplayer.js"></script>
+
+  <!-- scripts -->
+
+  <!-- audio -->
+  <script src="../support/audiolib.min.js"></script>
+  <script src="../support/music.js"></script>
+
+  <!-- support -->
+  <script src="../support/jquery-1.7.1.min.js"></script>
+  <script src="../support/jqueryui/jquery-ui-1.8.17.custom.min.js"></script>
+  <script src="../support/raphael-min.js"></script>
+
+  <!-- vexflow/vextab/tabdiv -->
+  <script src="../support/vexflow/vexflow.js"></script>
+  <script src="../support/vexflow/vextabdiv.js"></script>
+  
+  <!-- tab player -->
+  <script src="../src/music-tracker.js"></script>
+  <script src="../src/vexflow-parser.js"></script>
+  <script src="../src/tab-player.js"></script>
+
+  <!-- base64 encoded string of drum samples -->
+  <script src="drum-samples.js"></script>
+
+
 
   <script>
-    Vex.Flow.TabDiv.SEL = null; // tabdiv - disable vextab processing on page load
+    // disable tabdiv processing on page load
+    Vex.Flow.TabDiv.SEL = null;
 
     $(document).ready(function() {
 
-      // tabdiv - parse, create canvas, and draw
-      var tabDiv = new Vex.Flow.TabDiv("#tab");
+        // tabdiv - parse, create canvas, and draw
+        var tabDiv = new Vex.Flow.TabDiv("#tab");
 
-      var tempo = Number($('#txtTempo').val());
+        // initialize tab player
+        var player = new TabPlayer(tabDiv, 60);
 
-      // initialize TabPlayer
-      var player = new TabPlayer(tabDiv, tempo);
-    
     });
   </script>
 
 </head>
 
 <body>
-  <div style="width:640px; margin:0px auto;">
+  <div style="width:620px; margin:0px auto;">
 
     <h1>TabDiv Test w/ Tab Player</h1>
 
