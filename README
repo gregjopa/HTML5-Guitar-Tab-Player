@@ -1,7 +1,19 @@
-Read the following blog post for details about this HTML5 Guitar Tab Player:
+## Example usage
 
-http://www.gregjopa.com/2010/12/html5-guitar-tab-player-with-firefox-audio-data-api/
+```javascript
+/* Using TavDiv */
 
-and also:
+// disable tabdiv processing on page load
+Vex.Flow.TabDiv.SEL = null;
 
-http://hacks.mozilla.org/2011/01/html5guitar/
+$(document).ready(function() {
+
+    // tabdiv - parse, create canvas, and draw
+    var tabDiv = new Vex.Flow.TabDiv("#tab");
+
+    // initialize tab player
+    var player = new TabPlayer(tabDiv, 60);
+
+});
+
+```
