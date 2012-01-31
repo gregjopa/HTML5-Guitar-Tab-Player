@@ -1,0 +1,39 @@
+div.tab-toolbar {
+  padding: 8px 4px 4px;
+  font-size: 62.5%;
+}
+
+div.tab-toolbar-fixed {
+  margin: 10px 0 0 0;
+  position: fixed;
+  bottom: 0;
+  z-index: 2;
+}
+
+div.tab-toolbar-placeholder {
+  height: 46px;
+  display: none;
+}
+
+div.tab-toolbar button, div.tab-toolbar label {
+  width: 10%;
+}
+
+div.tab-toolbar button.play {
+  width: 25%;
+}
+
+div.tab-toolbar .slider {
+  font-family: Verdana,Arial,sans-serif;
+  width: 15%;
+  display: inline-block;
+  position: relative;
+  padding: 0;
+  margin: 0 10px;
+  overflow: visible;
+}
+
+div.tab-toolbar div.divider {
+  width: 1%;
+  display: inline-block;
+}

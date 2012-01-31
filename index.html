@@ -1,134 +1,211 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--Created by Greg Jopa - http://www.gregjopa.com/2010/12/html5-guitar-tab-player-with-firefox-audio-data-api/ -->
-  <title>HTML5 Guitar Tab Player - By Greg Jopa</title>
-  <script src="js/jquery-1.7.1.min.js"></script>
-  <script src="js/raphael-min.js"></script>
-  <script src="js/music.js"></script>
-  <script src="js/audiolib.min.js"></script>
-  <script src="js/drum-samples.js"></script>
+  <meta charset="utf-8">
+  <title>HTML5 Guitar Tab Player</title>
+  <meta name="description" content="HTML5 Guitar Tablature Player w/ Vexflow and Audiolib">
+  <meta name="author" content="Greg Jopa">
 
-  <!--vexflow.com guitar tab app-->
-  <link href="tabdiv/tabdiv.css" media="screen" rel="stylesheet" type="text/css" />
-  <script src="tabdiv/vexflow.js"></script>
-  <script src="tabdiv/vextabdiv.js"></script>
+  <!-- styles -->
+  <link href="support/vexflow/tabdiv.css" rel="stylesheet">
+  <link href="support/jqueryui/css/custom-theme/jquery-ui-1.8.17.custom.css" rel="stylesheet" />
+  <link href="src/tab-player.css" rel="stylesheet">
 
-  <!-- custom js -->
-  <script src="tabplayer.js"></script>
+  <style>
+  
+    body {
+      font-family: Verdana,Arial,sans-serif;
+      font-size: 13px;
+      font-weight: normal;
+      margin: 0;
+      background-color: #EEE;
+    }
+
+    div.container {
+      width: 940px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    div.content {
+      background-color: white;
+      box-shadow: 0 1px 2px #DDD;
+    }
+
+    div.page-header {
+      padding: 10px 20px;
+      border-bottom: 1px solid #DDD;
+    }
+
+    div.page-header h1 {
+      margin-bottom: 18px;
+      font-size: 30px;
+      line-height: 36px;
+      font-weight: bold;
+      color: #404040;
+    }
+
+    div.page-header h1 small {
+      font-size: 18px;
+      font-weight: normal;
+      color: #BFBFBF;
+    }
+
+    div.song-menu {
+      padding: 10px 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #DDD;
+    }
+
+    #songList {
+      width: 600px;
+      height: 27px;
+      padding: 4px;
+      line-height: 27px;
+      font-size: 13px;
+      border: 1px solid #CCC;
+      border-radius: 3px;
+      background: transparent;
+    }
+
+    #tab {
+      width: 900px;
+      padding: 0 20px;
+    }
+
+    footer {
+      padding: 17px 0 10px 0;
+      border-top: 1px solid #EEE;
+      text-align: center;
+    }
+
+    .fork img {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+  
+  </style>
+
+  
+  <!-- scripts -->
+  
+  <!-- audio -->
+  <script src="support/audiolib.min.js"></script>
+  <script src="support/music.js"></script>
+
+  <!-- support -->
+  <script src="support/jquery-1.7.1.min.js"></script>
+  <script src="support/jqueryui/jquery-ui-1.8.17.custom.min.js"></script>
+  <script src="support/raphael-min.js"></script>
+
+  <!-- vexflow/vextab/tabdiv -->
+  <script src="support/vexflow/vexflow.js"></script>
+  <script src="support/vexflow/vextabdiv.js"></script>
+  
+  <!-- tab player -->
+  <script src="src/music-tracker.js"></script>
+  <script src="src/vexflow-parser.js"></script>
+  <script src="src/tab-player.js"></script>
+
+  <!-- base64 encoded string of drum samples -->
+  <script src="tests/drum-samples.js"></script>
+
+  <!-- guitar tab songs in json -->
+  <script src="songs.js"></script>
+
 
   <script>
 
-    var tempo, showLoader, tabDiv, player;
+    // disable tabdiv processing on page load
+    Vex.Flow.TabDiv.SEL = null;
 
-    Vex.Flow.TabDiv.SEL = null; // vexflow - disable automatic initialization
- 
-   
     $(document).ready(function() {
-      
-      $('input[name="tab"]').click(function() {
-        loadXML(this.value);
-      });
-      
-      // load tab
-      loadXML($("input[name='tab']:checked").val()); 
-    });
 
-  
-    function loadXML(file) {
-  
-      showLoader = setTimeout("$('#loader').show()", 300);
-      $('#tab').empty();
-      $('#audio').empty();
-    
-      $.ajax({
-      type: "GET",
-      url: "musicxml/" + file,
-      dataType: "xml",
-        success: function(xml) { 
-          
-        var divisions, note, tab = "", noteType;
-    
-        $(xml).find('measure').each(function() {
-          if(($(this).attr('number')-1)%4 == 0 || $(this).attr('number') == 1) {
-            tab += "\n\ttabstave notation=true\n\tnotes";
-          }
-          else {
-            tab += " |";
-          }
-      
-          divisions = $(this).find('attributes').children('divisions').text();
-      
-          $(this).find("note").each(function() {
-            // check for sharps               
-            if($(this).find('pitch').children('alter').length == 0){
-              note = $(this).find('pitch').children('step').text();
+        var $songList = $('#songList'),
+            tabDiv,
+            player,
+            html = '',
+            key,
+            obj;
+
+        // add songs to select box
+        for (key in songs) {
+            if (songs.hasOwnProperty(key)) {
+                obj = songs[key];
+                html += '<option value="' + key + '">' + obj.title + ' by ' + obj.artist + '</option>';
             }
-            else{
-              note = $(this).find('pitch').children('step').text() + "s";
-            }
-
-            switch ($(this).find('duration').text()/divisions) {
-              case .125: noteType = '32'; break;
-              case .25: noteType = '16'; break;
-              case .5: noteType = '8'; break;
-              case 1: noteType = 'q'; break;
-              case 2: noteType = 'h'; break;
-              case 4: noteType = 'w'; break;
-              default: noteType = 'q';
-            }
-
-            tab += " :" + noteType + " " +
-              $(this).find('notations').children('technical').children('fret').text() + "/" +
-              $(this).find('notations').children('technical').children('string').text();
-          });
-        
-        });
-    
-
-        $('#tab').append(tab);
-    
-        // vexflow - parse, create canvas, and redraw
-        tabDiv = new Vex.Flow.TabDiv("#tab");
-    
-        tempo = Number($('#txtTempo').val());
-
-        // initialize TabPlayer obj
-        player = new TabPlayer(tabDiv, tempo);
-
-        clearTimeout(showLoader);
-        $('#loader').hide();
         }
-      });  
-    }
+
+        $songList.append(html);
+
+
+        $songList.change(function() {
+            prepareTab(this.value);
+            player.loadTab(tabDiv);
+        });
+
+
+        $songList[0].selectedIndex = 0;
+
+        prepareTab($songList.val());
+
+        // initialize TabPlayer
+        player = new TabPlayer(tabDiv, 120);
+
+
+        function prepareTab(songName) {
+
+            var $tab = $('#tab'),
+                tabCode = "",
+                tabLineCount = songs[songName].vexTabCode.length,
+                i;
+
+            for (i = 0; i < tabLineCount; i++) {
+                tabCode += songs[songName].vexTabCode[i] + "\n";
+            }
+
+            $tab.empty().append(tabCode);
+
+            // tabdiv - parse, create canvas, and draw
+            tabDiv = new Vex.Flow.TabDiv("#tab");
+        }
+
+
+    });
 
   </script>
 
 </head>
 
 <body>
-  <div style="width:960px; margin:0px auto;">
-
-    <h1>HTML5 Guitar Tab Player - Web Audio API</h1>
-    <form name="tabform">
-      <input type="radio" name="tab" value="Twinkle, Twinkle, Little Star.xml" checked /> 
-        Twinkle, Twinkle, Little Star<br />
-      <input type="radio" name="tab" value="12 Bar Blues (G).xml" /> 
-        12 Bar Blues (key of G)<br />
-      <input type="radio" name="tab" value="Minor Harmonic Scale (A).xml" /> 
-        Minor Harmonic Scale (key of A)<br />
-      <input type="radio" name="tab" value="Triad Exercise (C).xml" /> 
-        Triad Exercise (key of C)<br />
-      <input type="radio" name="tab" value="Blues Solo in E.xml" /> 
-        Blues Solo in E<br />
-    </form>
-    <hr />
-    <br />
+  <a class="fork" href="https://github.com/GregJ/HTML5-Guitar-Tab-Player">
+    <img src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" 
+      alt="Fork me on GitHub">
+  </a>
   
-    <div id="tab-wrapper" style="position: relative;">
-      <img id="loader" src="tabdiv/loading.gif" alt="loading gif" />
-      <div id="tab" class="vex-tabdiv" width=940 scale=1.0 editor="false"></div>
+  <div class="container">
+    <div class="content">
+      
+      <div class="page-header">
+        <h1>HTML5 Guitar Tab Player <small> A Music Player plug-in for Vexflow</small></h1>
+      </div>
+
+      <div class="song-menu">
+        <label for="songList">Choose a guitar tab: </label>
+        <select id="songList">
+          <!-- <option value="song1" selected >Blues</option>
+          <option value="song2">Scales</option> -->
+        </select>
+      </div>
+
+      <div id="tab" class="vex-tabdiv" width=900 scale=1.0 editor="false"></div>
+    
     </div>
+  
+    <footer>
+      <p>by <a href="http://twitter.com/#!/gregjopa">@gregjopa</a></p>
+    </footer>
   
   </div>
 </body>
