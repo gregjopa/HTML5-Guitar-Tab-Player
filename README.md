@@ -12,7 +12,11 @@ $(document).ready(function() {
     var tabDiv = new Vex.Flow.TabDiv("#tab");
 
     // initialize tab player
-    var player = new TabPlayer(tabDiv, 60);
+    var player = new TabPlayer({
+        'tabDiv': tabDiv,
+        'tempo': 120,
+        'notesPerBeat': 4
+    });
 
 });
 
