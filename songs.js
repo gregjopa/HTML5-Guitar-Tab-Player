@@ -35,6 +35,17 @@ var songs = {
         "tempo": 100,
         "vexTabCode": ["tabstave notation=true key=Am time=4/4 \n notes :8 [ 13/3 14/3 13/3 15/4 ] [ 13/3 15/4 14/4 13/4 ] | :8 [ 14/4 15/4 14/4 12/4 ] :8 [ 14/4 12/4 15/5 14/5 ]",
           "tabstave notation=true \n notes :8 [ 15/5 14/5 15/5 12/4 ] :8 [ 15/5 14/5 12/5 14/5 ] | :w (5/6.7/5.7/4)"]
+    },
+
+    "song5": {
+        "title": "First Part (Excerpt)",
+        "artist": "Dionisio Aguado",
+        "timeSignature": [2, 4],
+        "tempo": 40,
+        "vexTabCode": ["tabstave notation=true key=Am time=2/4 \n notes :16 [ 2/3 1/2 0/1 1/2 ] [ 2/3 1/2 0/1 1/2 ] | :16 [ 1/3 0/2 0/1 0/2 ] [ 2/4 0/2 0/1 0/2 ] | :16 [ 4/3 3/2 0/1 3/2 ] [ 4/3 3/2 0/1 3/2 ]",
+          "tabstave notation=true \n notes :16 [ 2/3 1/2 0/1 1/2 ] [ 0/5 1/2 0/1 1/2 ] | :16 [ 2/3 1/2 0/1 1/2 ] [ 0/3 2/2 0/1 2/2 ] | :16 [ 3/4 3/2 1/1 3/2 ] [ 0/4 3/2 1/1 3/2 ]", 
+          "tabstave notation=true \n notes :16 [ 2/4 1/2 0/1 1/2 ] [ 1/3 0/2 0/1 0/2 ] | :16 [ 2/3 1/2 0/1 1/2 ] | :h 0/5"
+        ]
     }
 
 }
