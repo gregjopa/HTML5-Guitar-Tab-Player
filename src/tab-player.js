@@ -1,11 +1,6 @@
 // create new TabPlayer from a TabDiv object
-function TabPlayer(tabDiv, tempo) {
-    this.tabDiv = tabDiv;
-    this.tempo = tempo;
-    this.notesPerBeat = 4;
-    this.isPlaying = false;
-    this.cursorDiv;
-
+function TabPlayer(args) {
+  
     this.cursor = {
         animation: true,
         width: 5,
@@ -14,16 +9,29 @@ function TabPlayer(tabDiv, tempo) {
         y: 0
     };
 
+    this.cursorDiv;
+
     this.noteIndex = -1;
     this.debug = false;
 
-    this.loadTab(this.tabDiv);
+    this.loadTab(args);
     this.resetCursor = this.setupCursorAnimation();
 }
 
 
-TabPlayer.prototype.loadTab = function(tabDiv) {
-    this.score = VexflowParser.prepareScore(tabDiv);
+TabPlayer.prototype.loadTab = function(args) {
+  
+    // mandatory arguments
+    this.tabDiv = args.tabDiv;
+
+    // check for optional arguments
+    this.tempo = (typeof args.tempo === "number") ? args.tempo : 120;
+  
+    this.isPlaying = (typeof args.isPlaying === "boolean") ? args.isPlaying : false;
+
+    this.notesPerBeat = (typeof args.notesPerBeat === "number") ? args.notesPerBeat : 4;
+  
+    this.score = VexflowParser.prepareScore(this.tabDiv);
 
     // initialize MusicTracker module
     MusicTracker.init({
@@ -32,11 +40,12 @@ TabPlayer.prototype.loadTab = function(tabDiv) {
         isPlaying: false,
         isLooping: false,
         hasMetronome: true,
-        drumSample: samples.snare
+        drumSample: samples.snare,
+        notesPerBeat: this.notesPerBeat
     });
 
     this.sampleRate = MusicTracker.getSampleRate();
-    this.pixelMap = VexflowParser.preparePixelMap(tabDiv);
+    this.pixelMap = VexflowParser.preparePixelMap(this.tabDiv);
 
     // reset the cursor when replacing an existing tab
     if (this.resetCursor) {

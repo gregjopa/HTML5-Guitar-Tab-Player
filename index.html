@@ -142,7 +142,11 @@
 
         $songList.change(function() {
             prepareTab(this.value);
-            player.loadTab(tabDiv);
+            player.loadTab({
+              'tabDiv': tabDiv,
+              'tempo': songs[this.value].tempo,
+              'notesPerBeat': songs[$songList.val()].timeSignature[0]
+            });
         });
 
 
@@ -151,7 +155,11 @@
         prepareTab($songList.val());
 
         // initialize TabPlayer
-        player = new TabPlayer(tabDiv, 120);
+        player = new TabPlayer({
+            'tabDiv': tabDiv,
+            'tempo': songs[$songList.val()].tempo,
+            'notesPerBeat': songs[$songList.val()].timeSignature[0]
+        });
 
 
         function prepareTab(songName) {
