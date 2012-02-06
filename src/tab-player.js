@@ -59,7 +59,7 @@ TabPlayer.prototype.loadTab = function(args) {
 
 
 TabPlayer.prototype.translateCursor = function(x, y) {
-    styleStr = "translate(" + x + "px, " + y + "px)";
+    styleStr = "translate3d(" + x + "px, " + y + "px, 0px)";
     this.cursorDiv.style.webkitTransform = this.cursorDiv.style.MozTransform = this.cursorDiv.style.transform = styleStr;
 }
 
@@ -99,7 +99,10 @@ TabPlayer.prototype.initializeCursor = function() {
         'position': 'absolute',
         'left': ($vexCanvas.outerWidth() - $vexCanvas.width()) / 2,
         'top': ($vexCanvas.outerHeight() - $vexCanvas.height()) / 2,
-        '-webkit-transform': 'translateZ(0px)'
+        // enable hardware acceleration w/ CSS3 3D transforms
+        '-webkit-transform-style': 'preserve-3d',
+        '-moz-transform-style': 'preserve-3d',
+        'overflow': 'hidden'
     });
 
     this.translateCursor(this.cursor.x, this.cursor.y);
@@ -129,11 +132,6 @@ TabPlayer.prototype.setupCursorAnimation = function() {
 
     var cursorToNextNote = function() {
 
-        // restart cursor when at end of song for looping control
-        if (MusicTracker.getNoteIndex() === -1) {
-            that.resetCursor();
-        }
-
         lineNoteIndex++;
         that.noteIndex++;
 
@@ -143,7 +141,16 @@ TabPlayer.prototype.setupCursorAnimation = function() {
         if (lineNoteIndex === lineNoteCount && lineNoteIndex !== 0) {
             lineIndex++;
             lineNoteIndex = 0;
-            that.cursor.y = that.pixelMap[lineIndex].y;
+
+            // restart cursor at beginning if at end of song
+            if (MusicTracker.getNoteIndex() === -1 || typeof that.pixelMap[lineIndex] === "undefined") {
+              that.resetCursor();
+              that.noteIndex = lineNoteIndex = 0;
+            }
+            else {
+              that.cursor.y = that.pixelMap[lineIndex].y;             
+            }
+
         }
 
 
@@ -201,6 +208,7 @@ TabPlayer.prototype.setupCursorAnimation = function() {
             }
             else {
                 cursorToNextNote();
+                
             }
 
         }
