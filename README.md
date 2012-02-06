@@ -16,7 +16,7 @@ $(document).ready(function() {
         'tabDiv': tabDiv,
         'tempo': 120,
         'notesPerBeat': 4,
-				'animation': true
+        'animation': true
     });
 
 });
