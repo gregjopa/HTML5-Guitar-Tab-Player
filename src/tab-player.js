@@ -2,7 +2,6 @@
 function TabPlayer(args) {
   
     this.cursor = {
-        animation: true,
         width: 5,
         height: 0,
         x: 0,
@@ -30,6 +29,9 @@ TabPlayer.prototype.loadTab = function(args) {
     this.isPlaying = (typeof args.isPlaying === "boolean") ? args.isPlaying : false;
 
     this.notesPerBeat = (typeof args.notesPerBeat === "number") ? args.notesPerBeat : 4;
+
+		this.cursor.animation = (typeof args.animation === "boolean") ? args.animation : true;
+
   
     this.score = VexflowParser.prepareScore(this.tabDiv);
 

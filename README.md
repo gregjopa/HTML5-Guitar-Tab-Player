@@ -15,7 +15,8 @@ $(document).ready(function() {
     var player = new TabPlayer({
         'tabDiv': tabDiv,
         'tempo': 120,
-        'notesPerBeat': 4
+        'notesPerBeat': 4,
+				'animation': true
     });
 
 });
