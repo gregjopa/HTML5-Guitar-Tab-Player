@@ -219,17 +219,29 @@ var MusicTracker = (function() {
         song.score = args.score;
 
         // check for optional arguments
-        song.tempo = (typeof args.tempo === "number") ? args.tempo : 120;
+        if (typeof args.tempo === "number") {
+          song.tempo = args.tempo;
+        }
 
-        song.isPlaying = (typeof args.isPlaying === "boolean") ? args.isPlaying : false;
+        if (typeof args.isPlaying === "boolean") {
+          song.isPlaying = args.isPlaying;
+        }
 
-        song.isLooping = (typeof args.isLooping === "boolean") ? args.isLooping : true;
+        if (typeof args.isLooping === "boolean") {
+          song.isLooping = args.isLooping;
+        }
 
-        song.hasMetronome = (typeof args.hasMetronome === "boolean") ? args.hasMetronome : false;
+        if (typeof args.hasMetronome === "boolean") {
+          song.hasMetronome = args.hasMetronome;
+        }
 
-        song.drumSample = (typeof args.drumSample === "string") ? args.drumSample : null;
+        if (typeof args.drumSample === "string") {
+          song.drumSample = args.drumSample;
+        }
 
-        song.notesPerBeat = (typeof args.notesPerBeat === "number") ? args.notesPerBeat : 4;
+        if (typeof args.notesPerBeat === "number") {
+          song.notesPerBeat = args.notesPerBeat;
+        }
 
         // if audioDevice already exists restart song w/ new arguments
         (typeof dev === 'undefined') ? buildAudio() : restart();
