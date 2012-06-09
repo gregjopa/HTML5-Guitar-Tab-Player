@@ -136,7 +136,13 @@ TabPlayer.prototype.setScrollYStep = function(lineIndex,lineFirstNoteIndex) {
     
     lineDuration = lineDuration * this.notesPerBeat / this.tempo * this.sampleRate;
     
-    this.scrollYStep =  (this.tabDiv.editor_height+this.tabDiv.extra_height) / (lineDuration  * 60 / 1000);
+    this.scrollYStep =  (this.tabDiv.editor_height+this.tabDiv.extra_height) * 2 / (lineDuration  * 60 / 1000);
+    /* TODO: find better way to calculate scollStepY. 
+     We have experienced some differences on speed rendering from runnning locally to running online. 
+     For the moment, the ssolution is to get two times the scrollYStep. It's better to scroll too fast than too slow, 
+     because there is a limit when cursor arrives at the top of the window.   
+     */
+    
     
 }
 TabPlayer.prototype.setupCursorAnimation = function() {
