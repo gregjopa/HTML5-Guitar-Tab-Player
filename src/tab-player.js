@@ -8,6 +8,7 @@ function TabPlayer(args) {
         y: 0
     };
 
+    this.windowScoreTop=0;
     this.cursorDiv;
 
     this.noteIndex = -1;
@@ -15,6 +16,7 @@ function TabPlayer(args) {
 
     this.loadTab(args);
     this.resetCursor = this.setupCursorAnimation();
+    
 }
 
 
@@ -32,7 +34,10 @@ TabPlayer.prototype.loadTab = function(args) {
 
 		this.cursor.animation = (typeof args.animation === "boolean") ? args.animation : true;
 
-  
+    this.volume = (typeof args.volume === "number") ? args.volume : 5;
+    
+    this.autoScroll = (typeof args.autoScroll === "boolean") ? args.autoScroll : false; 
+    
     this.score = VexflowParser.prepareScore(this.tabDiv);
 
     // initialize MusicTracker module
@@ -45,8 +50,12 @@ TabPlayer.prototype.loadTab = function(args) {
         drumSample: samples.snare,
         notesPerBeat: this.notesPerBeat
     });
-
+    
+    MusicTracker.setVolume(this.volume);
+  
     this.sampleRate = MusicTracker.getSampleRate();
+    
+          
     this.pixelMap = VexflowParser.preparePixelMap(this.tabDiv);
 
     // reset the cursor when replacing an existing tab
@@ -56,6 +65,7 @@ TabPlayer.prototype.loadTab = function(args) {
 
     this.initializeCursor();
     this.addToolbar();
+    this.scrollYStep = 0;
 }
 
 
@@ -89,9 +99,10 @@ TabPlayer.prototype.initializeCursor = function() {
     firstNote = this.pixelMap[0].notes[0];
 
     this.cursor.x = firstNote.start_x;
-    this.cursor.y = firstStave.y;
+    this.cursor.y = firstStave.y; 
     this.cursor.height = firstStave.height;
-
+     
+    
     $vexCanvas = $(this.tabDiv.ctx_sel.selector);
 
     $cursor.css({
@@ -106,12 +117,28 @@ TabPlayer.prototype.initializeCursor = function() {
         '-moz-transform-style': 'preserve-3d',
         'overflow': 'hidden'
     });
-
+    
+    
+    this.windowScoreTop=0;
+    window.scrollTo(0,this.windowScoreTop);
     this.translateCursor(this.cursor.x, this.cursor.y);
 };
 
-
-
+TabPlayer.prototype.setScrollYStep = function(lineIndex,lineFirstNoteIndex) {
+     
+    var lineLastNoteIndex = lineFirstNoteIndex + this.pixelMap[lineIndex].notes.length;
+            
+    lineDuration=0;
+      
+    for (i=lineFirstNoteIndex;i<lineLastNoteIndex;i++){ 
+        lineDuration+=this.score[i].dur;
+    }
+    
+    lineDuration = lineDuration * this.notesPerBeat / this.tempo * this.sampleRate;
+    
+    this.scrollYStep =  (this.tabDiv.editor_height+this.tabDiv.extra_height) / (lineDuration  * 60 / 1000);
+    
+}
 TabPlayer.prototype.setupCursorAnimation = function() {
 
     var lineIndex = 0,
@@ -128,29 +155,36 @@ TabPlayer.prototype.setupCursorAnimation = function() {
         noteStartTime = 0,
         // in pixels
         distance = 0;
-
+                        
+    this.setScrollYStep(0,0);    
     var that = this;
 
+    
 
     var cursorToNextNote = function() {
-
+        
         lineNoteIndex++;
         that.noteIndex++;
 
-        lineNoteCount = that.pixelMap[lineIndex].notes.length;
 
+        lineNoteCount = that.pixelMap[lineIndex].notes.length;
+        
         // check for line breaks
         if (lineNoteIndex === lineNoteCount && lineNoteIndex !== 0) {
+            
             lineIndex++;
             lineNoteIndex = 0;
+            that.setScrollYStep(lineIndex,that.noteIndex);
 
             // restart cursor at beginning if at end of song
             if (MusicTracker.getNoteIndex() === -1 || typeof that.pixelMap[lineIndex] === "undefined") {
+              
               that.resetCursor();
               that.noteIndex = lineNoteIndex = 0;
             }
             else {
-              that.cursor.y = that.pixelMap[lineIndex].y;             
+              that.cursor.y = that.pixelMap[lineIndex].y;
+                           
             }
 
         }
@@ -160,7 +194,7 @@ TabPlayer.prototype.setupCursorAnimation = function() {
         noteStartTime = MusicTracker.getPlaybackTime() - MusicTracker.getStartTime();
 
         currentNoteDuration = that.score[that.noteIndex].dur * 60 * that.notesPerBeat / that.tempo * that.sampleRate;
-
+        
         begin_x = that.pixelMap[lineIndex].notes[lineNoteIndex].start_x;
         end_x = that.pixelMap[lineIndex].notes[lineNoteIndex].end_x;
         that.cursor.x = begin_x;
@@ -179,8 +213,7 @@ TabPlayer.prototype.setupCursorAnimation = function() {
         if (dynamicTempo !== that.tempo) {
             dynamicTempo = that.tempo;
 
-            currentNoteDuration = that.score[that.noteIndex].dur
-              * 60 * that.notesPerBeat / that.tempo * that.sampleRate;
+            currentNoteDuration = that.score[that.noteIndex].dur  * 60 * that.notesPerBeat / that.tempo * that.sampleRate;
         }
 
         notePercentComplete = (currentTime - noteStartTime) / currentNoteDuration;
@@ -189,10 +222,23 @@ TabPlayer.prototype.setupCursorAnimation = function() {
             notePercentComplete = 1;
         }
 
-        that.cursor.x = notePercentComplete * distance + begin_x;
+        that.cursor.x = notePercentComplete * distance + begin_x;    
+        
+    }               
+
+    var scroll = function(){
+      
+      var offsety=that.cursor.y+that.tabDiv.canvas.offset().top; 
+
+      if (that.windowScoreTop  < offsety - 30)  // we will leave a margin of 30px 
+      {
+        that.windowScoreTop+=that.scrollYStep; 
+        window.scrollTo(0,that.windowScoreTop);
+      }
+       
+       
     }
-
-
+    
     function render() {
         var currentTime = MusicTracker.getPlaybackTime() - MusicTracker.getStartTime();
 
@@ -212,6 +258,10 @@ TabPlayer.prototype.setupCursorAnimation = function() {
                 cursorToNextNote();
                 
             }
+
+            if (that.autoScroll)  scroll();
+            
+            
 
         }
         else {
@@ -268,6 +318,7 @@ TabPlayer.prototype.stop = function() {
     var options;
 
     MusicTracker.stop();
+    
     this.isPlaying = false;
 
     this.resetCursor();
