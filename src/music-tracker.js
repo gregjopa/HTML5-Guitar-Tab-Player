@@ -173,6 +173,12 @@ var MusicTracker = (function() {
 
         // Initialize audio device
         dev = audioLib.AudioDevice(audioCallback, 2);
+        
+        // preBufferSize is only used in Firefox so set to 0 when it doesn't exist
+        if (!dev.preBufferSize) { 
+          dev.preBufferSize = 0; 
+        };
+
 
         // Initialize 6 oscillators - one for each guitar string
         leads = [
